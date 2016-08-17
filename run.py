@@ -22,6 +22,7 @@ import traceback
 from queue import Empty
 
 from config import *
+from BAM_filters import BAMFilter, FilterScheme
 
 STATES = {
     0:'BEGINNING',
@@ -39,6 +40,20 @@ STATE_ORDER = {
 # global functions should not log to logger, wrap them with
 # instance functions if you want them to log things (only) through logq
 
+
+def collect_filters():
+    filters = {}
+    filter_module = sys.modules['BAM_filters']
+    for x in dir(filter_module):
+        try:
+            if issubclass(filter_module.__dict__[x], BAMFilter):
+                fname = filter_module.__dict__[x].name
+                if fname is not None:
+                    filters[fname] = filter_module.__dict__[x]
+        except TypeError: pass
+    return filters
+
+
 def create_dir(path):
     if not os.path.exists(path): os.mkdir(path)
 
@@ -51,28 +66,6 @@ def get_logfile():
     create_dir(p)
     fname = '%s_%i_%i-%i-%i' % (getpass.getuser(), now.day, now.hour, now.minute, now.second)
     return p + os.sep + fname
-
-
-def parse_bowtie_stats(bt_stats):
-    # parse this output:
-    # <line>*
-    # 10263 reads;
-    # of these:
-    #     10263(100.00 %) were unpaired;
-    #     of these:
-    #         1055(10.28 %) aligned 0 times
-    #         4337(42.26 %) aligned exactly 1 time
-    #         4871(47.46 %) aligned > 1 times
-    # 89.72 % overall alignment rate
-    # <line>*
-    nlines, Ns = 0, []
-    for i, line in enumerate(bt_stats):
-        m = re.match('\s*(\d+).*', line)
-        if m is not None:
-            nlines += 1
-            if nlines in [2,3,4,5]:
-                Ns.append(m.group(1))
-    return Ns
 
 
 def hamming_ball(seq, radius, alphabet='CGTAN'):
@@ -144,12 +137,9 @@ class MainHandler(object):
     def __init__(self, argobj, cmdline):
         self.__dict__.update(argobj.__dict__)
 
-        self.start_from = self.start_after
-
         self.fastqq = mp.Queue()
         self.bamq = mp.Queue()
         self.filterq = mp.Queue()
-        self.analysisq = mp.Queue()
 
         self.logq = mp.Queue()
         self.logwrtr = mp.Process(target=write_logs, args=(self.logq, self.user_emails))
@@ -158,15 +148,19 @@ class MainHandler(object):
         self.logwrtr.start()
 
         self.check_third_party()
-        self.parse_filters()
+        try:
+            self.filters = MainHandler.parse_filters(self.filters)
+        except Exception as e:
+            self.logq.put((lg.ERROR, "could not parse filter string, please review it"))
+            exit()
         self.parse_analyses()
 
     def create_dir_and_log(self, path, level=lg.DEBUG):
         create_dir(path)
         self.logq.put((level, 'creating folder %s' % path))
 
-    def start_worker(self, cls, args):
-        worker = cls(self.__dict__, *args)
+    def start_worker(self, func):
+        worker = mp.Process(target=func)
         worker.daemon = True
         worker.start()
         return worker
@@ -177,27 +171,28 @@ class MainHandler(object):
         self.write_barcode_file()
 
         fastq_ncomplete = set([])
-        if self.start_from == STATES[0]:
+        if self.start_after == STATES[0]:
             self.collect_input_fastqs()
             self.split_barcodes()
             for bc, sample in self.b2s.items():
                 fastq_ncomplete.add(sample)
-                self.start_worker(FormatFastq, (sample, self.logq, self.fastqq))
+                formatter = FastqFormatter(self.__dict__, sample, self.logq, self.fastqq)
+                self.start_worker(formatter.run)
 
         bam_ncomplete = set([])
         while fastq_ncomplete:
             sample = self.fastqq.get()
             fastq_ncomplete.remove(sample)
             bam_ncomplete.add(sample)
-            self.start_worker(Fastq2BAM, (sample, self.logq, self.bamq))
-        if self.start_from == STATES[0]: self.mark_fastq()
+            aligner = Fastq2BAM(self.__dict__, sample, self.logq, self.bamq)
+            self.start_worker(aligner.run)
+        if self.start_after == STATES[0]: self.mark_fastq()
 
-        if self.start_from == STATES[1]:
+        if self.start_after == STATES[1]:
             for bc, sample in self.b2s.items():
                 bam_ncomplete.add(sample)
-                self.start_worker(Fastq2BAM, (sample, self.logq, self.bamq))
-        else:
-            assert bam_ncomplete
+                aligner = Fastq2BAM(self.__dict__, sample, self.logq, self.bamq)
+                self.start_worker(aligner.run)
 
         filter_ncomplete = set([])
         while bam_ncomplete:
@@ -205,49 +200,34 @@ class MainHandler(object):
             bam_ncomplete.remove(sample)
             for fname, filter in self.filters.items():
                 filter_ncomplete.add((sample, fname))
-                self.start_worker(FilterBAM, (sample, filter, self.logq, self.filterq))
-        if STATE_ORDER[self.start_from] <= 1: self.mark_aligned()
+                filterer = FilterBAM(self.__dict__, sample, filter, self.logq, self.filterq)
+                self.start_worker(filterer.run())
+        if STATE_ORDER[self.start_after] <= 1: self.mark_aligned()
 
-        # if self.start_from == STATES[3]:
-        #     for bc, sample in self.b2s.items():
-        #         for fname, filter in self.filters.items():
-        #             filter_ncomplete.add((sample, fname))
-        #             self.start_worker(FilterBAM, (sample, filter, self.logq, self.filterq))
-        #
-        # analysis_ncomplete = set([])
-        # while filter_ncomplete:
-        #     sample, fname = self.filterq.get()
-        #     filter_ncomplete.remove((sample, fname))
-        #     for aname, analysis in self.anlyses.items():
-        #         analysis_ncomplete.add((sample, fname, aname))
-        #         self.start_worker(AnalyzeBAM, (sample, fname, analysis, self.logq, self.analysisq))
-        # if self.start_from == STATES[3]: self.mark_filtered()
-        #
-        # if self.start_from == STATES[4]:
-        #     for bc, sample in self.b2s.items():
-        #         for fname, filter in self.filters.items():
-        #             for aname, analysis in self.analyses.items():
-        #                 analysis_ncomplete.add((sample, fname, aname))
-        #                 self.start_worker(AnalyzeBAM, (sample, fname, analysis, self.logq, self.analysisq))
-        #
-        # while analysis_ncomplete:
-        #     sample, fname, aname = self.analysisq.get()
-        #     analysis_ncomplete.remove((sample, fname, aname))
-        #
-        # # finally, merge results
-        # mergers = []
-        # for aname, analysis in self.analyses.items():
-        #     mergers.append(self.start_worker(MergeAnalysis, (aname, analysis, self.logq)))
-        # for m in mergers: m.join()
+        if self.start_after == STATES[2]:
+            for bc, sample in self.b2s.items():
+                for fname, filter in self.filters.items():
+                    filter_ncomplete.add((sample, fname))
+                    filterer = FilterBAM(self.__dict__, sample, filter, self.logq, self.filterq)
+                    self.start_worker(filterer.run())
+
+        analyzers = []
+        while filter_ncomplete:
+            sample, fname = self.filterq.get()
+            filter_ncomplete.remove((sample,fname))
+            for aname, ascheme in self.analyses.items():
+                analzyer = AnalyzeBAM(self.__dict__, sample, filter, ascheme, self.logq)
+                analyzers.append(self.start_worker(analzyer.run()))
+        if STATE_ORDER[self.start_after] <= 2: self.mark_filtered()
+
+        for a in analyzers: a.join()
 
         # clean up and go home
         self.aftermath()
 
     def print_stats(self):
         stats = set([])
-        for s, st in self.stats.items():
-            stats |= set(st.keys())
-        fns = ['sample'] + list(stats)
+        fns = ['sample'] + self.stat_order
         fh = open(self.output_dir + os.sep + 'sample_statistics.csv','w')
         wrtr = csv.DictWriter(fh, fns)
         wrtr.writeheader()
@@ -256,7 +236,6 @@ class MainHandler(object):
         fh.close()
 
     def mark(self, stage):
-        self.start_after = stage
         self.print_stats()
         msg = ('Finished stage %s. You can continue the pipeline from this point '
                'with the option -sa %s (--start_after %s)'  % (stage, stage, stage))
@@ -270,13 +249,6 @@ class MainHandler(object):
         stage = fh.read().strip()
         fh.close()
         return stage
-
-    def mark_split(self):
-        """
-        collect all statistics upto this point and mark folder with apropriate flags
-        for future easy reference (see "start_after" option of this script)
-        """
-        pass
 
     def mark_fastq(self):
         """
@@ -298,6 +270,8 @@ class MainHandler(object):
                 with open(f) as F:
                     for line in F:
                         stat, cnt = line.strip().split('\t')
+                        if stat not in self.stat_order:
+                            self.stat_order.append(stat)
                         if len(fs) == 4: stat += '_'+fs[2]
                         self.stats[sample][stat] += int(cnt)
                 os.remove(f)
@@ -306,8 +280,18 @@ class MainHandler(object):
     def mark_filtered(self):
         # collect all statistics upto this point and mark folder with apropriate flags
         # for future easy reference (see "start_after" option of this script)
-        self.mark(STATES[4])
-        pass
+        self.logq.put((lg.INFO, 'All filters applied successfully'))
+        for fname in os.listdir(self.tmp_dir):
+            if not fname.endswith('stats'): continue
+            fpath = self.tmp_dir + os.sep + fname
+            F = open(fpath)
+            sample, fscheme, _ = fname.split('.')
+            stat = 'passed:%s' % fscheme
+            if stat not in self.stat_order:
+                self.stat_order.append(stat)
+            self.stats[sample][stat] += int(F.read())
+            os.remove(fpath)
+        self.mark(STATES[3])
 
     def mark_analyzed(self):
         # collect all statistics upto this point and mark folder with apropriate flags
@@ -377,7 +361,9 @@ class MainHandler(object):
 
         self.b2s = b2s
         self.s2b = s2b
+        self.bc_len = len(list(b2s)[0])
         self.stats = {s: Counter() for s in s2b.keys()}
+        self.stat_order = []
 
     def write_barcode_file(self):
         shutil.copy(self.barcode_file, self.output_dir + os.sep + 'barcodes')
@@ -411,7 +397,7 @@ class MainHandler(object):
 
     def generate_folder_structure(self):
 
-        if self.start_from != STATES[0]:
+        if self.start_after != STATES[0]:
             try:
                 cur = self.get_mark()
                 if STATE_ORDER[cur] >= STATE_ORDER[self.start_after]:
@@ -448,8 +434,11 @@ class MainHandler(object):
         self.tmp_dir = d + os.sep + TMP_NAME
         self.fastq_dir = d + os.sep + self.fastq_dirname
         self.bam_dir = d + os.sep + self.bam_dirname
+        # if os.path.isdir(self.tmp_dir): shutil.rmtree(self.tmp_dir)
+        # import time
+        # time.sleep(3)
 
-        if self.start_from == STATES[0]:
+        if self.start_after == STATES[0]:
             # assuming all folder structure exists if check passes
             self.create_dir_and_log(d, lg.INFO)
             self.create_dir_and_log(self.fastq_dir)
@@ -457,6 +446,12 @@ class MainHandler(object):
             self.create_dir_and_log(self.tmp_dir)
             if self.keep_unaligned:
                 self.create_dir_and_log(d + os.sep + UNALIGNED_NAME)
+
+        for f, scheme in self.filters.items():
+            create_dir(os.sep.join([self.output_dir, f]))
+            filter_folder = os.sep.join([self.output_dir, f, self.bam_dirname])
+            create_dir(filter_folder)
+            scheme.folder = filter_folder
 
     def split_barcodes(self):
         #
@@ -479,13 +474,13 @@ class MainHandler(object):
                 %s
                 }
                 {
-                x=substr($4,1,7); if (x in a) {c[a[x]]++; print >> "%s/"a[x];} else {c["%s"]++; print;}
+                x=substr($4,1,%i); if (x in a) {c[a[x]]++; print >> "%s/"a[x];} else {c["%s"]++; print;}
                 }
                 END {
                 for (bc in c)
                 print bc, c[bc] >> "%s"
                 }
-                """ % (arraydef, self.tmp_dir, nobc, cnt_path))
+                """ % (arraydef, self.bc_len , self.tmp_dir, nobc, cnt_path))
             script.close()
             return awk_path
 
@@ -493,6 +488,7 @@ class MainHandler(object):
             bc1 = os.sep.join([self.tmp_dir, "bc_counts-1"])
             bc2 = os.sep.join([self.tmp_dir, "bc_counts-2"])
             stat = "#reads"
+            self.stat_order.append(stat)
             self.stats['no-barcode'] = Counter()
             with open(bc1) as IN:
                 for line in IN:
@@ -508,7 +504,6 @@ class MainHandler(object):
             os.remove(bc2)
             for s in self.s2b.keys():
                 if s not in self.stats:
-                    no_counts.append(s)
                     self.stats[s][stat] += 0
             msg = '\n'.join(['%s: %i' % (s, c['#reads']) for s, c in self.stats.items()])
             self.logq.put((lg.CRITICAL, 'read counts:\n' + msg))
@@ -531,14 +526,43 @@ class MainHandler(object):
             awk2 = sp.Popen(sh.split('awk -F "\\t" -f ' + awk2p), stdin=awk1.stdout, stdout=open(os.devnull,'w'))
             awk2.wait()
             self.logq.put((lg.INFO, 'Barcode splitting finished.'))
+        merge_statistics()
 
-    def parse_filters(self):
-        self.filters = {}
-        # try:
-        #     self.filters.split(';')
-        # except AttributeError as e:
-        #     self.logq.put((lg.ERROR), 'could not resolve filter argument, see -fh')
-        #     raise e
+    def parse_filters(filters_string):
+        """
+        format is:
+        [<filter_scheme>:[<filter_name>([<argname1=argval1>,]+)[+|-])]+;]*
+        examples:
+            non-unique:qual(q=10)-,dup()+;unique:dup(),qual(q=10)+;unique-polya:dup()+,qual(q=1)+,polya(nA=5)+
+
+        :return: a dictionary of instantiated filter schemes
+        """
+        filters = collect_filters()
+        schemes = {}
+        for sc in filters_string.split(';'):
+            scheme_name, rest = sc.strip().split(':')
+            fs = []
+            while True:
+                if '(' not in rest: break
+                fname, rest = rest.split('(', 1)
+                fcls = filters[fname]
+                argstr, rest = rest.split(')', 1)
+                if ',' not in rest:
+                    neg = rest
+                else:
+                    neg, rest = rest.split(',', 1)
+                if not neg: neg = False
+                else:
+                    assert neg in ['+', '-'], '"+"/"-" expected after ")"'
+                    neg = neg == '-'
+                args = {}
+                for arg in argstr.split(','):
+                    if arg:
+                        aname, aval = arg.split('=')
+                        args[aname] = fcls.args[aname][0](aval) #casting to argument type
+                fs.append(fcls(neg, **args))
+            schemes[scheme_name] = FilterScheme(scheme_name, fs)
+        return schemes
 
     def parse_analyses(self):
         self.analyses = {}
@@ -557,10 +581,9 @@ class MainHandler(object):
         shutil.copy(logfile, self.output_dir + os.sep + 'full.log')
 
 
-class FormatFastq(mp.Process):
+class FastqFormatter(object):
 
     def __init__(self, argdict, sample, logq, comq):
-        mp.Process.__init__(self)
         self.sample = sample
         self.logq = logq
         self.comq = comq
@@ -583,9 +606,9 @@ class FormatFastq(mp.Process):
         elif os.path.isfile(pre2):
             cat = sp.Popen(['cat', pre2], stdout=sp.PIPE)
         else:
-            cat = sp.Popen(['cat'], stdin=os.devnull, stdout=sp.PIPE)
-        awk = sp.Popen(sh.split('''awk -F "\\t" '{print "@umi:"substr($4,8,4)"\\n"$3"\\n+\\n"$7}' '''),
-                       stdin=cat.stdout, stdout=sp.PIPE)
+            cat = sp.Popen(['cat'], stdin=open(os.devnull), stdout=sp.PIPE)
+        awk = sp.Popen(sh.split('''awk -F "\\t" '{print "@umi:"substr($4,%i,%i)"\\n"$3"\\n+\\n"$7}' '''
+                                % (self.bc_len+1, self.umi_length)), stdin=cat.stdout, stdout=sp.PIPE)
         gzip = sp.Popen(['gzip'], stdin=awk.stdout, stdout=open(target_path,'wb'))
         gzip.wait()
         if os.path.isfile(pre1): os.remove(pre1)
@@ -603,10 +626,31 @@ class FormatFastq(mp.Process):
             raise e
 
 
-class Fastq2BAM(mp.Process):
+class Fastq2BAM(object):
+
+    def parse_bowtie_stats(self, bt_stats):
+        # parse this output:
+        # <line>*
+        # 10263 reads;
+        # of these:
+        #     10263(100.00 %) were unpaired;
+        #     of these:
+        #         1055(10.28 %) aligned 0 times
+        #         4337(42.26 %) aligned exactly 1 time
+        #         4871(47.46 %) aligned > 1 times
+        # 89.72 % overall alignment rate
+        # <line>*
+        nlines, Ns = 0, []
+        for i, line in enumerate(bt_stats):
+            m = re.match('\s*(\d+).*', line)
+            if m is not None:
+                if int(m.group(1)) == 0: return [0, 0, 0, 0] # no reads...
+                nlines += 1
+                if nlines in [2, 3, 4, 5]:
+                    Ns.append(m.group(1))
+        return Ns
 
     def __init__(self, argdict, sample, logq, comq):
-        mp.Process.__init__(self)
         self.sample = sample
         self.logq = logq
         self.comq = comq
@@ -642,7 +686,7 @@ class Fastq2BAM(mp.Process):
         ind = sp.Popen(sh.split('samtools index %s' % self.bam))
         ind.wait()
         os.remove(tmpbam)
-        Ns = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
+        Ns = self.parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
         msg = '%s aligned. Total: %s, No: %s, Unique: %s, Non-Unique: %s)' % ((self.sample,) + tuple(Ns))
         self.logq.put((lg.INFO, msg))
         with open(tmpstats, 'w') as S:
@@ -658,7 +702,7 @@ class Fastq2BAM(mp.Process):
         tmpstats = self.tmp_dir + os.sep + self.sample + '.bowtie.klac.stats'
         bt = sp.Popen(sh.split('%s --local -p 4 -U %s -x %s' % (self.bowtie_exec, self.fastq, self.klac_index_path)),
                       stderr=sp.PIPE, stdout=open(os.devnull, 'w'))
-        Ns = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
+        Ns = self.parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
         msg = '%s aligned to k. lcatis. Total: %s, No: %s, Unique: %s, Non-Unique: %s)' % ((self.sample,) + tuple(Ns))
         self.logq.put((lg.INFO, msg))
         with open(tmpstats, 'w') as S:
@@ -680,12 +724,40 @@ class Fastq2BAM(mp.Process):
             raise e
 
 
-class FilterBAM(mp.Process):
+class FilterBAM(object):
     pass
+
+    def __init__(self, argdict, sample, filter_scheme, logq, comq):
+        self.sample = sample
+        self.logq = logq
+        self.comq = comq
+        self.fscheme = filter_scheme
+        self.__dict__.update(argdict)
+
+    def run(self):
+        bamin = self.bam_dir + os.sep + self.sample + '.bam'
+        bamout = os.sep.join([self.fscheme.folder, self.sample + '.bam'])
+        self.logq.put((lg.DEBUG, 'filtering sample %s with filter %s' % (self.sample, self.fscheme.name)))
+        n = self.fscheme.filter(bamin, bamout)
+        sfile = os.path.extsep.join([self.sample, self.fscheme.name, 'stats'])
+        s = open(self.tmp_dir + os.sep + sfile, 'w')
+        s.write(str(n))
+        s.close()
+        msg = 'filtered sample %s with filter %s (%i pased)' % (self.sample, self.fscheme.name, n)
+        self.logq.put((lg.INFO, msg))
+        self.comq.put((self.sample, self.fscheme.name))
 
 
 class AnalyzeBAM(mp.Process):
-    pass
+    def __init__(self, argdict, sample, filter_scheme, analysis, logq):
+        self.sample = sample
+        self.logq = logq
+        self.fscheme = filter_scheme
+        self.analysis = analysis
+        self.__dict__.update(argdict)
+
+    def run(self):
+        pass
 
 
 class MergeAnalysis(mp.Process):
@@ -733,6 +805,8 @@ def build_parser():
                         '\nname: <name> \n experiment: <expname>\n followed by any number '
                         'of lines specifying the barcodes and samples: <bc1>,<sample1>\n<bc2>,<sample2>...\n'
                         'default is "barcodes" in given fastq path')
+    g.add_argument('--umi_length', '-ul', type=int, default=8,
+                   help='UMI length')
     g.add_argument('--hamming_distance', '-hd', default=1, type=int,
                    help='barcode upto this hamming distance from given barcodes are handled by '
                         'the pipeline')
@@ -754,7 +828,7 @@ def build_parser():
                              description='different filters applied to base BAM file. Each filter result is '
                                          'processeed downstream and reported separately')
     g.add_argument('--filters', '-F', action='store',
-                   default='unique:dup()+,qual(maxq=1,)+;unique-polya:dup()+,qual(1,)+,polya(5,)+',
+                   default='unique:dup()+,qual(q=10,)+;unique-polyA:dup()+,qual(q=1,)+,polyA(n=5,)+',
                    help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
                         '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
                         'resulting outputs from this branch of the data. use "run -fh" for more info.')
