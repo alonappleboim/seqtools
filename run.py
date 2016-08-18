@@ -140,20 +140,12 @@ class MainHandler(object):
         self.fastqq = mp.Queue()
         self.bamq = mp.Queue()
         self.filterq = mp.Queue()
-
         self.logq = mp.Queue()
         self.logwrtr = mp.Process(target=write_logs, args=(self.logq, self.user_emails))
         if self.debug:
             self.logq.put((lg.INFO, '=================== DEBUG MODE (%s)===================' % self.debug))
         self.logwrtr.start()
-
         self.check_third_party()
-        try:
-            self.filters = MainHandler.parse_filters(self.filters)
-        except Exception as e:
-            self.logq.put((lg.ERROR, "could not parse filter string, please review it"))
-            exit()
-        self.parse_analyses()
 
     def create_dir_and_log(self, path, level=lg.DEBUG):
         create_dir(path)
@@ -168,7 +160,16 @@ class MainHandler(object):
     def execute(self):
         self.parse_barcode_file()
         self.generate_folder_structure()
-        self.write_barcode_file()
+        shutil.copy(self.barcode_file, self.output_dir + os.sep + 'barcodes')
+        self.filters, parse_tree = self.parse_filters()
+        if self.filters is None:
+            parse_tree = '\n'.join(str(x) for x in parse_tree)
+            raise ValueError("could not parse filter string, please review it: %s" % parse_tree)
+        else:
+            self.logq.put((lg.INFO, 'found filters: \n%s' % '\n'.join(str(x) for x in self.filters)))
+        self.parse_analyses()
+        self.generate_filter_folders()
+
 
         fastq_ncomplete = set([])
         if self.start_after == STATES[0]:
@@ -322,16 +323,15 @@ class MainHandler(object):
 
     def parse_barcode_file(self):
         with open(self.barcode_file) as BCF:
-            name = re.match('.*name.*:\s+(\w+)', BCF.readline())
             exp = re.match('.*experiment.*:\s+(\w+)', BCF.readline())
-            if name is None or exp is None:
-                msg = 'barcodes file should contain a 2 line header with name: ' \
-                      '<name> and experiment: <expname> (no spaces)'
+            if exp is None:
+                msg = 'barcodes file should contain a header with experiment name: ' \
+                      'experiment: <expname>'
                 self.logq.put((lg.CRITICAL, msg))
                 raise ValueError(msg)
-            self.name = name.group(1)
+            self.user = getpass.getuser()
             self.exp = exp.group(1)
-            msg = 'name: %s, experiment: %s' % (self.name, self.exp)
+            msg = 'user: %s, experiment: %s' % (self.user, self.exp)
             self.logq.put((lg.INFO, msg))
             b2s, s2b = {}, {}
             bl = None
@@ -414,7 +414,7 @@ class MainHandler(object):
                 exit()
         else:
             if self.output_dir is None:
-                folder = canonic_path(DATA_PATH) + os.sep + self.name[0].upper() + self.name[1:].lower()
+                folder = canonic_path(DATA_PATH) + os.sep + self.user
                 create_dir(folder)
                 folder += os.sep + self.exp
                 create_dir(folder)
@@ -434,9 +434,7 @@ class MainHandler(object):
         self.tmp_dir = d + os.sep + TMP_NAME
         self.fastq_dir = d + os.sep + self.fastq_dirname
         self.bam_dir = d + os.sep + self.bam_dirname
-        # if os.path.isdir(self.tmp_dir): shutil.rmtree(self.tmp_dir)
-        # import time
-        # time.sleep(3)
+        if os.path.isdir(self.tmp_dir): shutil.rmtree(self.tmp_dir)
 
         if self.start_after == STATES[0]:
             # assuming all folder structure exists if check passes
@@ -447,6 +445,7 @@ class MainHandler(object):
             if self.keep_unaligned:
                 self.create_dir_and_log(d + os.sep + UNALIGNED_NAME)
 
+    def generate_filter_folders(self):
         for f, scheme in self.filters.items():
             create_dir(os.sep.join([self.output_dir, f]))
             filter_folder = os.sep.join([self.output_dir, f, self.bam_dirname])
@@ -528,7 +527,7 @@ class MainHandler(object):
             self.logq.put((lg.INFO, 'Barcode splitting finished.'))
         merge_statistics()
 
-    def parse_filters(filters_string):
+    def parse_filters(self):
         """
         format is:
         [<filter_scheme>:[<filter_name>([<argname1=argval1>,]+)[+|-])]+;]*
@@ -537,32 +536,43 @@ class MainHandler(object):
 
         :return: a dictionary of instantiated filter schemes
         """
-        filters = collect_filters()
-        schemes = {}
-        for sc in filters_string.split(';'):
-            scheme_name, rest = sc.strip().split(':')
-            fs = []
-            while True:
-                if '(' not in rest: break
-                fname, rest = rest.split('(', 1)
-                fcls = filters[fname]
-                argstr, rest = rest.split(')', 1)
-                if ',' not in rest:
-                    neg = rest
-                else:
-                    neg, rest = rest.split(',', 1)
-                if not neg: neg = False
-                else:
-                    assert neg in ['+', '-'], '"+"/"-" expected after ")"'
-                    neg = neg == '-'
-                args = {}
-                for arg in argstr.split(','):
-                    if arg:
-                        aname, aval = arg.split('=')
-                        args[aname] = fcls.args[aname][0](aval) #casting to argument type
-                fs.append(fcls(neg, **args))
-            schemes[scheme_name] = FilterScheme(scheme_name, fs)
-        return schemes
+        try:
+            parse_tree = []
+            filters = collect_filters()
+            schemes = {}
+            for sc in self.filters.split(';'):
+                scheme_name, rest = sc.strip().split(':')
+                parse_tree.append((scheme_name, rest))
+                fs = []
+                while True:
+                    if '(' not in rest: break
+                    fname, rest = rest.split('(', 1)
+                    parse_tree.append((fname, rest))
+                    fcls = filters[fname]
+                    argstr, rest = rest.split(')', 1)
+                    parse_tree.append((argstr, rest))
+                    if ',' not in rest:
+                        neg = rest
+                    else:
+                        neg, rest = rest.split(',', 1)
+                        parse_tree.append((neg, rest))
+                    if not neg: neg = False
+                    else:
+                        assert neg in ['+', '-'], '"+"/"-" expected after ")"'
+                        neg = neg == '-'
+                    args = {}
+                    for arg in argstr.split(','):
+                        parse_tree.append((arg,))
+                        if arg:
+                            aname, aval = arg.split('=')
+                            parse_tree.append((aname, aval))
+                            args[aname] = fcls.args[aname][0](aval) #casting to argument type
+                    args.update(self.__dict__)
+                    fs.append(fcls(neg, **args))
+                schemes[scheme_name] = FilterScheme(scheme_name, fs)
+            return schemes, parse_tree
+        except Exception as e:
+            return None, parse_tree
 
     def parse_analyses(self):
         self.analyses = {}
@@ -669,12 +679,16 @@ class Fastq2BAM(object):
         tmpbam = self.tmp_dir + os.sep + self.sample + '.tmp.bam'
         tmpstats = self.tmp_dir + os.sep + self.sample + '.bowtie.stats'
         fname = self.sample + '.bam'
+        hname = self.sample + '.hdr.sam'
         self.bam = os.sep.join([self.bam_dir, fname])
+        samhdr = os.sep.join([self.bam_dir, hname])
         nbam = os.sep.join([self.output_dir, UNALIGNED_NAME, fname])
         bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' %
                                (self.bowtie_exec, self.n_threads, self.fastq, self.scer_index_path)),
                       stdout=sp.PIPE, stderr=sp.PIPE)
-        st = sp.Popen(sh.split('samtools view -b -o %s' % tmpbam), stdin=bt.stdout)
+        awkcmd = """awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN") {print $0 > "%s";} print; }' """ % samhdr
+        geth = sp.Popen(sh.split(awkcmd), stdin=bt.stdout, stdout=sp.PIPE)
+        st = sp.Popen(sh.split('samtools view -b -o %s' % tmpbam), stdin=geth.stdout)
         st.wait()
         if self.keep_unaligned:
             naligned = sp.Popen(sh.split('samtools view -f4 -b %s -o %s' % (tmpbam, nbam)), stdout=sp.PIPE)
@@ -738,12 +752,12 @@ class FilterBAM(object):
         bamin = self.bam_dir + os.sep + self.sample + '.bam'
         bamout = os.sep.join([self.fscheme.folder, self.sample + '.bam'])
         self.logq.put((lg.DEBUG, 'filtering sample %s with filter %s' % (self.sample, self.fscheme.name)))
-        n = self.fscheme.filter(bamin, bamout)
+        n = self.fscheme.filter(bamin, bamout, self.sample)
         sfile = os.path.extsep.join([self.sample, self.fscheme.name, 'stats'])
         s = open(self.tmp_dir + os.sep + sfile, 'w')
         s.write(str(n))
         s.close()
-        msg = 'filtered sample %s with filter %s (%i pased)' % (self.sample, self.fscheme.name, n)
+        msg = 'filtered sample %s with filter %s (%i passed)' % (self.sample, self.fscheme.name, n)
         self.logq.put((lg.INFO, msg))
         self.comq.put((self.sample, self.fscheme.name))
 
@@ -828,7 +842,8 @@ def build_parser():
                              description='different filters applied to base BAM file. Each filter result is '
                                          'processeed downstream and reported separately')
     g.add_argument('--filters', '-F', action='store',
-                   default='unique:dup()+,qual(q=10,)+;unique-polyA:dup()+,qual(q=1,)+,polyA(n=5,)+',
+                   default='unique:dup(kind=start&umi&cigar)+,qual(q=5,)+;'
+                           'unique-polyA:dup(kind=start&umi)+,qual(q=5,)+,polyA(n=5,)+',
                    help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
                         '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
                         'resulting outputs from this branch of the data. use "run -fh" for more info.')
@@ -875,7 +890,7 @@ if __name__ == '__main__':
             args.__dict__['fastq_pref'] = args.output_dir  # ignoring input folder
     else:
         if args.fastq_prefix is None:
-            print('If the --start_after option is not used, an input fastq prefix/folder (--fastq_prefix).')
+            print('If the --start_after option is not used, an input fastq prefix/folder mut be provided (--fastq_prefix).')
             exit()
 
     p, s = os.path.split(args.fastq_prefix)
