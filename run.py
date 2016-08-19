@@ -21,7 +21,8 @@ import shutil
 
 from workers import *
 from config import *
-from BAM_filters import BAMFilter, FilterScheme
+from utils import *
+from BAM_filters import *
 
 BEGIN = 0
 FASTQ = 1
@@ -33,66 +34,6 @@ USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'ALIGN':ALIGN, 'FILTR':FILTR}
 
 # global functions should not log to logger, wrap them with
 # instance functions if you want them to log things (only) through logq
-
-
-def collect_filters():
-    filters = {}
-    filter_module = sys.modules['BAM_filters']
-    for x in dir(filter_module):
-        try:
-            if issubclass(filter_module.__dict__[x], BAMFilter):
-                fname = filter_module.__dict__[x].name
-                if fname is not None:
-                    filters[fname] = filter_module.__dict__[x]
-        except TypeError: pass
-    return filters
-
-
-def create_dir(path):
-    if not os.path.exists(path): os.mkdir(path)
-
-
-def get_logfile():
-    now = datetime.datetime.now()
-    p = LOG_PATH + os.sep + str(now.year)
-    create_dir(p)
-    p += os.sep + str(now.month)
-    create_dir(p)
-    fname = '%s_%i_%i-%i-%i' % (getpass.getuser(), now.day, now.hour, now.minute, now.second)
-    return p + os.sep + fname
-
-
-def hamming_ball(seq, radius, alphabet='CGTAN'):
-    ball = [seq]
-    if radius > 0:
-        for i in range(len(seq)):
-            for l in alphabet:
-                seql = list(seq)
-                seql[i] = l
-                ball.extend(hamming_ball(''.join(seql), radius-1, alphabet))
-    return list(set(ball))
-
-
-def isint(x):
-    try:
-        int(x)
-        return True
-    except ValueError:
-        return False
-
-
-def block_exec(command, on_slurm, stdout=None):
-    if on_slurm:
-        p = sp.Popen(['srun', command], stdout=sp.PIPE, stderr=sp.PIPE)
-        out, err = p.communicate()
-    else:
-        p = sp.Popen(sh.split(command))
-        out, err = p.communicate()
-    return out, err
-
-
-def canonic_path(fname):
-    return os.path.abspath(os.path.expanduser(fname))
 
 
 def write_logs(logq, user_emails=None, is_debug=False):
@@ -135,35 +76,28 @@ class MainHandler(object):
         self.logq = mp.Queue()
         self.logwrtr = mp.Process(target=write_logs, args=(self.logq, self.user_emails, self.debug is not None))
         if self.debug:
-            self.logq.put((lg.INFO, '=================== DEBUG MODE (%s)===================' % self.debug))
+            self.logq.put((lg.INFO, '=================== DEBUG MODE (%s) ===================' % self.debug))
         self.logwrtr.start()
         self.check_third_party()
 
-    def create_dir_and_log(self, path, level=lg.DEBUG):
-        create_dir(path)
-        self.logq.put((level, 'creating folder %s' % path))
+        msg = 'filters:\n' + '\n'.join(scheme.name+'\n'+str(scheme) for scheme in self.filters.values())
+        self.logq.put((lg.INFO, msg))
 
-    def execute(self):
         self.parse_barcode_file()
         self.generate_dir_tree()
         shutil.copy(self.barcode_file, self.output_dir + os.sep + 'barcodes')
-        self.filters, parse_tree = self.parse_filters()
-        if self.filters is None:
-            parse_tree = '\n'.join(str(x) for x in parse_tree)
-            raise ValueError("could not parse filter string, please review it: %s" % parse_tree)
-        else:
-            self.logq.put((lg.INFO, 'found filters: \n%s' % '\n'.join(str(x) for x in self.filters)))
-        self.parse_analyses()
-        self.generate_filter_folders()
-
-        self.files = {S: {s : {} for s in self.s2b.keys()}
+        self.files = {S: {s: {} for s in self.s2b.keys()}
                       for S in USER_STATES.values()}
+
+    def execute(self):
         if self.start_after <= BEGIN: self.make_fastq()
         if self.start_after <= FASTQ: self.make_bam()
         if self.start_after <= ALIGN: self.filter_bam()
         if self.start_after <= FILTR: self.analyze()
+        self.aftermath()
 
     def make_fastq(self):
+        self.logq.put((lg.INFO, 'Re-compiling fastq files...'))
         fs = self.files[FASTQ]
         self.collect_input_fastqs()
         bcout = None
@@ -192,6 +126,7 @@ class MainHandler(object):
         self.mark(FASTQ)
 
     def make_bam(self):
+        self.logq.put((lg.INFO, 'Aligning to genome...'))
         bam_ncomplete = set([])
         for bc, sample in self.b2s.items():
             f = self.files[ALIGN][sample]
@@ -233,6 +168,7 @@ class MainHandler(object):
         self.mark(ALIGN)
 
     def filter_bam(self):
+        self.logq.put((lg.INFO, 'Filtering the reads...'))
         filter_ncomplete = set([])
         for bc, sample in self.b2s.items():
             for f, fscheme in self.filters.items():
@@ -360,7 +296,7 @@ class MainHandler(object):
 
         for fn in os.listdir(self.fastq_path):
             if not fn.endswith('fastq.gz'): continue
-            if not fn.startswith(args.fastq_pref): continue
+            if not fn.startswith(self.fastq_pref): continue
             parts = re.split('_R\d',fn)
             if len(parts) == 2:
                 path = self.fastq_path + os.sep + fn
@@ -432,7 +368,6 @@ class MainHandler(object):
                 self.unaligned_dir = d + os.sep + UNALIGNED_NAME
                 self.create_dir_and_log(self.unaligned_dir)
 
-    def generate_filter_folders(self):
         for f, scheme in self.filters.items():
             create_dir(os.sep.join([self.output_dir, f]))
             filter_folder = os.sep.join([self.output_dir, f, self.bam_dirname])
@@ -509,56 +444,6 @@ class MainHandler(object):
 
         merge_statistics(cnt1, cnt2)
 
-    def parse_filters(self):
-        """
-        format is:
-        [<filter_scheme>:[<filter_name>([<argname1=argval1>,]+)[+|-])]+;]*
-        examples:
-            non-unique:qual(q=10)-,dup()+;unique:dup(),qual(q=10)+;unique-polya:dup()+,qual(q=1)+,polya(nA=5)+
-
-        :return: a dictionary of instantiated filter schemes
-        """
-        try:
-            parse_tree = []
-            filters = collect_filters()
-            schemes = {}
-            for sc in self.filters.split(';'):
-                scheme_name, rest = sc.strip().split(':')
-                parse_tree.append((scheme_name, rest))
-                fs = []
-                while True:
-                    if '(' not in rest: break
-                    fname, rest = rest.split('(', 1)
-                    parse_tree.append((fname, rest))
-                    fcls = filters[fname]
-                    argstr, rest = rest.split(')', 1)
-                    parse_tree.append((argstr, rest))
-                    if ',' not in rest:
-                        neg = rest
-                    else:
-                        neg, rest = rest.split(',', 1)
-                        parse_tree.append((neg, rest))
-                    if not neg: neg = False
-                    else:
-                        assert neg in ['+', '-'], '"+"/"-" expected after ")"'
-                        neg = neg == '-'
-                    args = {}
-                    for arg in argstr.split(','):
-                        parse_tree.append((arg,))
-                        if arg:
-                            aname, aval = arg.split('=')
-                            parse_tree.append((aname, aval))
-                            args[aname] = fcls.args[aname][0](aval) #casting to argument type
-                    args.update(self.__dict__)
-                    fs.append(fcls(neg, **args))
-                schemes[scheme_name] = FilterScheme(scheme_name, fs)
-            return schemes, parse_tree
-        except Exception as e:
-            return None, parse_tree
-
-    def parse_analyses(self):
-        self.analyses = {}
-
     def aftermath(self):
         # remove temp folder
         # make everything read only (optional?)
@@ -572,21 +457,9 @@ class MainHandler(object):
         logfile = self.logq.get()
         shutil.copy(logfile, self.output_dir + os.sep + 'full.log')
 
-
-class AnalyzeBAM(mp.Process):
-    def __init__(self, argdict, sample, filter_scheme, analysis, logq):
-        self.sample = sample
-        self.logq = logq
-        self.fscheme = filter_scheme
-        self.analysis = analysis
-        self.__dict__.update(argdict)
-
-    def run(self):
-        pass
-
-
-class MergeAnalysis(mp.Process):
-    pass
+    def create_dir_and_log(self, path, level=lg.DEBUG):
+        create_dir(path)
+        self.logq.put((level, 'creating folder %s' % path))
 
 
 def build_parser():
@@ -655,8 +528,8 @@ def build_parser():
                              description='different filters applied to base BAM file. Each filter result is '
                                          'processeed downstream and reported separately')
     g.add_argument('--filters', '-F', action='store',
-                   default='unique:dup(kind=start&umi&cigar)+,qual(q=5,)+;'
-                           'unique-polyA:dup(kind=start&umi)+,qual(q=5,)+,polyA(n=5,)+',
+                   default='non-unique:qual(q=10)-,dup()+;unique:dup(),qual(q=10)+;'
+                           'unique-polya:dup()+,qual(q=1)+,polyA(n=5)+',
                    help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
                         '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
                         'resulting outputs from this branch of the data. use "run -fh" for more info.')
@@ -693,8 +566,11 @@ def build_parser():
     return p
 
 
-if __name__ == '__main__':
-    p = build_parser()
+def parse_args(p):
+    """
+    :param p: argument parser
+    :return: the arguments parsed, after applying all argument logic and conversion
+    """
     args = p.parse_args()
     args.__dict__['start_after'] = USER_STATES[args.start_after]
     if args.start_after != BEGIN:
@@ -704,7 +580,8 @@ if __name__ == '__main__':
             args.__dict__['fastq_pref'] = args.output_dir  # ignoring input folder
     else:
         if args.fastq_prefix is None:
-            print('If the --start_after option is not used, an input fastq prefix/folder mut be provided (--fastq_prefix).')
+            print(
+                'If the --start_after option is not used, an input fastq prefix/folder mut be provided (--fastq_prefix).')
             exit()
 
     p, s = os.path.split(args.fastq_prefix)
@@ -713,7 +590,7 @@ if __name__ == '__main__':
     args.__dict__['fastq_prefix'] = canonic_path(args.fastq_prefix)
     p, s = os.path.split(args.fastq_prefix)
     if args.barcode_file is None:
-        args.__dict__['barcode_file'] = os.sep.join([args.fastq_path,'barcodes'])
+        args.__dict__['barcode_file'] = os.sep.join([args.fastq_path, 'barcodes'])
 
     if args.debug is not None:
         nlines, nsamples = args.debug.split(',')
@@ -722,5 +599,14 @@ if __name__ == '__main__':
 
     if args.output_dir is not None:
         args.__dict__['output_dir'] = canonic_path(args.__dict__['output_dir'])
-    mh = MainHandler(args, ' '.join(sys.argv))
+
+    args.__dict__['filters'] = build_filter_schemes(args.filters)
+
+    return args
+
+
+if __name__ == '__main__':
+    p = build_parser()
+    a = parse_args(p)
+    mh = MainHandler(a, ' '.join(sys.argv))
     mh.execute()
