@@ -7,6 +7,11 @@ LOCAL_BIN = '/cs/bd/tools/'
 # output
 UNALIGNED_NAME = 'unaligned'
 TMP_NAME = '.tmp'
+NO_BC_NAME = 'no-barcode'
+BC_COUNTS_FNAME = 'bc-counts-%s'
+SAM_HDR_SUFF = '.sam.hdr'
+TMP_BAM_SUFF = '.tmp.bam'
+BT_STATS_SUFF = '.bowtie.stats'
 
 # executables
 BOWTIE_EXEC = 'bowtie2'

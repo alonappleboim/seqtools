@@ -18,24 +18,18 @@ import multiprocessing as mp
 import subprocess as sp
 import shlex as sh
 import shutil
-import traceback
-from queue import Empty
 
+from workers import *
 from config import *
 from BAM_filters import BAMFilter, FilterScheme
 
-STATES = {
-    0:'BEGINNING',
-    1:'FASTQ',
-    2:'ALIGN',
-    3:'FILTER',
-}
-STATE_ORDER = {
-    'BEGINNING':0,
-    'FASTQ':1,
-    'ALIGN':2,
-    'FILTER':3,
-}
+BEGIN = 0
+FASTQ = 1
+ALIGN = 2
+FILTR = 3
+
+STATES = ['BEGIN', 'FASTQ', 'ALIGN', 'FILTR']
+USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'ALIGN':ALIGN, 'FILTR':FILTR}
 
 # global functions should not log to logger, wrap them with
 # instance functions if you want them to log things (only) through logq
@@ -101,8 +95,7 @@ def canonic_path(fname):
     return os.path.abspath(os.path.expanduser(fname))
 
 
-def write_logs(logq, user_emails=None):
-
+def write_logs(logq, user_emails=None, is_debug=False):
     #configure logging behavior
     logger = lg.getLogger()
     logfile = get_logfile()
@@ -113,6 +106,7 @@ def write_logs(logq, user_emails=None):
     ch.formatter = lg.Formatter('%(asctime)-15s\t%(message)s')
     fh.setLevel(lg.DEBUG)
     ch.setLevel(lg.INFO)
+    if is_debug: ch.setLevel(lg.DEBUG)
     if user_emails is not None:
         mailh = ThreadedTlsSMTPHandler(mailhost=('smtp.gmail.com', 587),
                                        fromaddr='transeq.pipeline@google.com',
@@ -137,11 +131,9 @@ class MainHandler(object):
     def __init__(self, argobj, cmdline):
         self.__dict__.update(argobj.__dict__)
 
-        self.fastqq = mp.Queue()
-        self.bamq = mp.Queue()
-        self.filterq = mp.Queue()
+        self.comq = mp.Queue()
         self.logq = mp.Queue()
-        self.logwrtr = mp.Process(target=write_logs, args=(self.logq, self.user_emails))
+        self.logwrtr = mp.Process(target=write_logs, args=(self.logq, self.user_emails, self.debug is not None))
         if self.debug:
             self.logq.put((lg.INFO, '=================== DEBUG MODE (%s)===================' % self.debug))
         self.logwrtr.start()
@@ -151,15 +143,9 @@ class MainHandler(object):
         create_dir(path)
         self.logq.put((level, 'creating folder %s' % path))
 
-    def start_worker(self, func):
-        worker = mp.Process(target=func)
-        worker.daemon = True
-        worker.start()
-        return worker
-
     def execute(self):
         self.parse_barcode_file()
-        self.generate_folder_structure()
+        self.generate_dir_tree()
         shutil.copy(self.barcode_file, self.output_dir + os.sep + 'barcodes')
         self.filters, parse_tree = self.parse_filters()
         if self.filters is None:
@@ -170,61 +156,109 @@ class MainHandler(object):
         self.parse_analyses()
         self.generate_filter_folders()
 
+        self.files = {S: {s : {} for s in self.s2b.keys()}
+                      for S in USER_STATES.values()}
+        if self.start_after <= BEGIN: self.make_fastq()
+        if self.start_after <= FASTQ: self.make_bam()
+        if self.start_after <= ALIGN: self.filter_bam()
+        if self.start_after <= FILTR: self.analyze()
 
+    def make_fastq(self):
+        fs = self.files[FASTQ]
+        self.collect_input_fastqs()
+        bcout = None
+        if self.keep_nobarcode:
+            bcout = self.fastq_dir + os.sep + NO_BC_NAME + '.fastq.gz'
+        self.split_barcodes(no_bc=bcout)
         fastq_ncomplete = set([])
-        if self.start_after == STATES[0]:
-            self.collect_input_fastqs()
-            self.split_barcodes()
-            for bc, sample in self.b2s.items():
-                fastq_ncomplete.add(sample)
-                formatter = FastqFormatter(self.__dict__, sample, self.logq, self.fastqq)
-                self.start_worker(formatter.run)
-
-        bam_ncomplete = set([])
+        for bc, sample in self.b2s.items():
+            fastq_ncomplete.add(sample)
+            fs[sample]['in1'] = self.tmp_dir + os.sep + sample + '-1'
+            fs[sample]['in2'] = self.tmp_dir + os.sep + sample + '-2'
+            fs[sample]['fastq'] = self.fastq_dir + os.sep + sample + '.fastq.gz'
+            args = (sample, fs[sample], self.comq, self.bc_len, self.umi_length)
+            start_worker(format_fastq, args=args)
         while fastq_ncomplete:
-            sample = self.fastqq.get()
+            (sample, status) = self.comq.get()
             fastq_ncomplete.remove(sample)
+            if status == 'ok':
+                # in principal the next step could start now, but then recovery options make the code
+                # practically unreadable, and the performance benefit is very small
+                self.logq.put((lg.DEBUG, '%s ready.' % fs[sample]['fastq']))
+            else:
+                msg = 'error in processing sample %s:\n%s' % (sample, status)
+                self.logq.put((lg.CRITICAL, msg))
+        self.logq.put((lg.INFO, 'fastq files were written to: %s' % self.fastq_dir))
+        self.mark(FASTQ)
+
+    def make_bam(self):
+        bam_ncomplete = set([])
+        for bc, sample in self.b2s.items():
+            f = self.files[ALIGN][sample]
+            f['fastq'] = self.files[FASTQ][sample]['fastq']
+            f['bam'] = self.bam_dir + os.sep + sample + '.bam'
+            f['tmp_bam'] = self.tmp_dir + os.sep + sample + TMP_BAM_SUFF
+            f['sam_hdr'] = self.bam_dir + os.sep + sample + SAM_HDR_SUFF
+            f['align_stats'] = self.tmp_dir + os.sep + sample + BT_STATS_SUFF
+            if self.klac_index_path is not None:
+                f['klac_align_stats'] = self.tmp_dir + os.sep + sample + '.klac' + BT_STATS_SUFF
+            if self.keep_unaligned:
+                f['unaligned_bam'] = self.unaligned_dir + os.sep + sample + '.bam'
+            args = (sample, self.files[ALIGN][sample], self.comq, self.bowtie_exec,
+                    self.n_threads, self.scer_index_path, self.klac_index_path)
+            start_worker(align, args=args)
             bam_ncomplete.add(sample)
-            aligner = Fastq2BAM(self.__dict__, sample, self.logq, self.bamq)
-            self.start_worker(aligner.run)
-        if self.start_after == STATES[0]: self.mark_fastq()
 
-        if self.start_after == STATES[1]:
-            for bc, sample in self.b2s.items():
-                bam_ncomplete.add(sample)
-                aligner = Fastq2BAM(self.__dict__, sample, self.logq, self.bamq)
-                self.start_worker(aligner.run)
-
-        filter_ncomplete = set([])
         while bam_ncomplete:
-            sample = self.bamq.get()
+            (sample, status) = self.comq.get()
             bam_ncomplete.remove(sample)
-            for fname, filter in self.filters.items():
-                filter_ncomplete.add((sample, fname))
-                filterer = FilterBAM(self.__dict__, sample, filter, self.logq, self.filterq)
-                self.start_worker(filterer.run())
-        if STATE_ORDER[self.start_after] <= 1: self.mark_aligned()
+            if status == 'ok':
+                self.logq.put((lg.DEBUG, '%s ready.' % self.files[ALIGN][sample]['bam']))
+            else:
+                msg = 'error while aligning sample %s:\n%s' % (sample, status)
+                self.logq.put((lg.CRITICAL, msg))
 
-        if self.start_after == STATES[2]:
-            for bc, sample in self.b2s.items():
-                for fname, filter in self.filters.items():
-                    filter_ncomplete.add((sample, fname))
-                    filterer = FilterBAM(self.__dict__, sample, filter, self.logq, self.filterq)
-                    self.start_worker(filterer.run())
+        for f in os.listdir(self.tmp_dir):
+            if not f.endswith(BT_STATS_SUFF): continue
+            is_klac = f.endswith('.klac'+BT_STATS_SUFF)
+            sample = f.split('.')[0]
+            fpath = self.tmp_dir + os.sep + f
+            with open(fpath) as F:
+                for line in F:
+                    stat, cnt = line.strip().split('\t')
+                    stat += '_klac' if is_klac else ''
+                    if stat not in self.stat_order: self.stat_order.append(stat)
+                    self.stats[sample][stat] += int(cnt)
+            os.remove(fpath)
+        self.mark(ALIGN)
 
-        analyzers = []
+    def filter_bam(self):
+        filter_ncomplete = set([])
+        for bc, sample in self.b2s.items():
+            for f, fscheme in self.filters.items():
+                files = self.files[FILTR][sample][f] = {}
+                files['bam_in'] = self.files[ALIGN][sample]['bam']
+                files['sam_hdr'] = self.files[ALIGN][sample]['sam_hdr']
+                files['bam_out'] = os.sep.join([self.output_dir, f, self.bam_dirname, sample + '.bam'])
+                args = (sample, files, self.comq, fscheme)
+                start_worker(filter_bam, args=args)
+                filter_ncomplete.add((sample, f))
+
         while filter_ncomplete:
-            sample, fname = self.filterq.get()
-            filter_ncomplete.remove((sample,fname))
-            for aname, ascheme in self.analyses.items():
-                analzyer = AnalyzeBAM(self.__dict__, sample, filter, ascheme, self.logq)
-                analyzers.append(self.start_worker(analzyer.run()))
-        if STATE_ORDER[self.start_after] <= 2: self.mark_filtered()
+            (sample, f, status, cnt) = self.comq.get()
+            filter_ncomplete.remove((sample, f))
+            if status == 'ok':
+                stat = 'passed:%s' % f
+                if stat not in self.stat_order: self.stat_order.append(stat)
+                self.stats[sample][stat] += cnt
+                self.logq.put((lg.DEBUG, 'filtered %s with %s (%i passed).' % (sample, f, cnt)))
+            else:
+                msg = 'error while filtering sample %s with filter %s:\n%s' % (sample, f, status)
+                self.logq.put((lg.CRITICAL, msg))
+        self.mark(FILTR)
 
-        for a in analyzers: a.join()
-
-        # clean up and go home
-        self.aftermath()
+    def analyze(self):
+        pass
 
     def print_stats(self):
         stats = set([])
@@ -238,6 +272,7 @@ class MainHandler(object):
 
     def mark(self, stage):
         self.print_stats()
+        stage = STATES[stage]
         msg = ('Finished stage %s. You can continue the pipeline from this point '
                'with the option -sa %s (--start_after %s)'  % (stage, stage, stage))
         self.logq.put((lg.INFO, msg))
@@ -247,57 +282,9 @@ class MainHandler(object):
 
     def get_mark(self):
         fh = open(self.output_dir + os.sep + '.pipeline_state')
-        stage = fh.read().strip()
+        stage = int(fh.read().strip())
         fh.close()
         return stage
-
-    def mark_fastq(self):
-        """
-        collect all statistics upto this point and mark folder with apropriate flags
-        for future easy reference (see "start_after" option of this script)
-        """
-        self.logq.put((lg.INFO, 'All fastq files were written to: %s' % self.fastq_dir))
-        self.mark(STATES[1])
-
-    def mark_aligned(self):
-        # collect all statistics upto this point and mark folder with apropriate flags
-        # for future easy reference (see "start_after" option of this script)
-        for f in os.listdir(self.tmp_dir):
-            fs = f.split(os.extsep)
-            if fs[-1]!= 'stats': continue
-            if fs[1] == 'bowtie':
-                sample = fs[0]
-                f = self.tmp_dir + os.sep + f
-                with open(f) as F:
-                    for line in F:
-                        stat, cnt = line.strip().split('\t')
-                        if stat not in self.stat_order:
-                            self.stat_order.append(stat)
-                        if len(fs) == 4: stat += '_'+fs[2]
-                        self.stats[sample][stat] += int(cnt)
-                os.remove(f)
-        self.mark(STATES[2])
-
-    def mark_filtered(self):
-        # collect all statistics upto this point and mark folder with apropriate flags
-        # for future easy reference (see "start_after" option of this script)
-        self.logq.put((lg.INFO, 'All filters applied successfully'))
-        for fname in os.listdir(self.tmp_dir):
-            if not fname.endswith('stats'): continue
-            fpath = self.tmp_dir + os.sep + fname
-            F = open(fpath)
-            sample, fscheme, _ = fname.split('.')
-            stat = 'passed:%s' % fscheme
-            if stat not in self.stat_order:
-                self.stat_order.append(stat)
-            self.stats[sample][stat] += int(F.read())
-            os.remove(fpath)
-        self.mark(STATES[3])
-
-    def mark_analyzed(self):
-        # collect all statistics upto this point and mark folder with apropriate flags
-        # for future easy reference (see "start_after" option of this script)
-        pass
 
     def prepare_outputs(self):
         pass
@@ -395,12 +382,11 @@ class MainHandler(object):
             raise IOError(msg)
         self.input_files = files
 
-    def generate_folder_structure(self):
-
-        if self.start_after != STATES[0]:
+    def generate_dir_tree(self):
+        if self.start_after != BEGIN:
             try:
                 cur = self.get_mark()
-                if STATE_ORDER[cur] >= STATE_ORDER[self.start_after]:
+                if USER_STATES[cur] >= USER_STATES[self.start_after]:
                     msg = 'restarting from %s in folder: %s ' % (self.start_after, self.output_dir)
                     self.logq.put((lg.INFO, msg))
                 else:
@@ -436,14 +422,15 @@ class MainHandler(object):
         self.bam_dir = d + os.sep + self.bam_dirname
         if os.path.isdir(self.tmp_dir): shutil.rmtree(self.tmp_dir)
 
-        if self.start_after == STATES[0]:
+        if self.start_after == BEGIN:
             # assuming all folder structure exists if check passes
             self.create_dir_and_log(d, lg.INFO)
             self.create_dir_and_log(self.fastq_dir)
             self.create_dir_and_log(self.bam_dir)
             self.create_dir_and_log(self.tmp_dir)
             if self.keep_unaligned:
-                self.create_dir_and_log(d + os.sep + UNALIGNED_NAME)
+                self.unaligned_dir = d + os.sep + UNALIGNED_NAME
+                self.create_dir_and_log(self.unaligned_dir)
 
     def generate_filter_folders(self):
         for f, scheme in self.filters.items():
@@ -452,43 +439,33 @@ class MainHandler(object):
             create_dir(filter_folder)
             scheme.folder = filter_folder
 
-    def split_barcodes(self):
+    def split_barcodes(self, no_bc=None):
         #
         #  first - compile awk scripts that will split input according to barcodes,
         # then use them with some smart pasting. For each input pair:
         # paste <(zcat {R1}) <(zcat {R2}) |\ %paste both files one next to the other
         # paste - - - -|\ % make every 4 lines into one
         # awk -F "\\t" -f {script1-exact_match}' |\ % split exact barcode matches
-        # awk -F "\\t" -f {script2-ham_dist}' % split erroneous matches (according to hamming distance)
+        # awk -F "\\t" -f {script2-ham_dist}' % split erroneous matches (subject to given hamming distance)
         #
+        """
 
+        :param no_bc: if given, orphan fastq enries are written to this prefix (with R1/R2 interleaved)
+        """
         def compile_awk(it, b2s):
-            awk_path = self.tmp_dir + os.sep + 'split_barcodes_%s.awk' % it
-            cnt_path = self.tmp_dir + os.sep + 'bc_counts-%s' % it
-            nobc = 'no-barcode-' + it
-            script = open(awk_path, 'w')
+            cnt_path = self.tmp_dir + os.sep + (BC_COUNTS_FNAME %  it)
+            nobc = NO_BC_NAME + '-' + it
             arraydef = ';\n'.join('a["%s"]="%s-%s"' % (b, s, it) for b, s in b2s.items()) + ';\n'
-            script.write("""
-                BEGIN {
-                %s
-                }
-                {
-                x=substr($4,1,%i); if (x in a) {c[a[x]]++; print >> "%s/"a[x];} else {c["%s"]++; print;}
-                }
-                END {
-                for (bc in c)
-                print bc, c[bc] >> "%s"
-                }
-                """ % (arraydef, self.bc_len , self.tmp_dir, nobc, cnt_path))
-            script.close()
-            return awk_path
+            awk_str = (""" 'BEGIN {%s} {x=substr($4,1,%i); if (x in a) """,
+                       """{c[a[x]]++; print >> "%s/"a[x];} else {c["%s"]++; print;} }""",
+                       """END { for (bc in c) print bc, c[bc] >> "%s" } '""")
+            awk_str = ''.join(awk_str) % (arraydef, self.bc_len , self.tmp_dir, nobc, cnt_path)
+            return awk_str, cnt_path
 
-        def merge_statistics():
-            bc1 = os.sep.join([self.tmp_dir, "bc_counts-1"])
-            bc2 = os.sep.join([self.tmp_dir, "bc_counts-2"])
+        def merge_statistics(bc1, bc2):
             stat = "#reads"
             self.stat_order.append(stat)
-            self.stats['no-barcode'] = Counter()
+            self.stats[NO_BC_NAME] = Counter()
             with open(bc1) as IN:
                 for line in IN:
                     sample, cnt = line.strip().split(' ')
@@ -511,8 +488,9 @@ class MainHandler(object):
         for b,s in self.b2s.items():
             hb.update({eb:s for eb in hamming_ball(b, self.hamming_distance)})
 
-        awk1p = compile_awk("1", self.b2s)
-        awk2p = compile_awk("2", hb)
+        awk1p, cnt1 = compile_awk("1", self.b2s)
+        awk2p, cnt2 = compile_awk("2", hb)
+        outf = open(os.devnull, 'w') if no_bc is None else open(no_bc, 'wb')
         for r1, r2 in self.input_files:
             msg = 'splitting files:\n%s\n%s' % (os.path.split(r1)[1],os.path.split(r2)[1])
             self.logq.put((lg.INFO, msg))
@@ -521,11 +499,15 @@ class MainHandler(object):
             awkin = sp.Popen(sh.split('paste - - - -'), stdin=paste1.stdout, stdout=sp.PIPE)
             if self.debug: # only a small subset of reads
                 awkin = sp.Popen(sh.split('head -%i' % self.db_nlines), stdin=awkin.stdout, stdout=sp.PIPE)
-            awk1 = sp.Popen(sh.split('awk -F "\\t" -f ' + awk1p), stdin=awkin.stdout, stdout=sp.PIPE)
-            awk2 = sp.Popen(sh.split('awk -F "\\t" -f ' + awk2p), stdin=awk1.stdout, stdout=open(os.devnull,'w'))
-            awk2.wait()
-            self.logq.put((lg.INFO, 'Barcode splitting finished.'))
-        merge_statistics()
+            awk1 = sp.Popen(sh.split('awk -F "\\t" ' + awk1p), stdin=awkin.stdout, stdout=sp.PIPE)
+            awk2 = sp.Popen(sh.split('awk -F "\\t" ' + awk2p), stdin=awk1.stdout, stdout=sp.PIPE)
+            awkcmd = """awk -F "\\t" '{print $1"\\n"$3"\\n"$5"\\n"$7; print $2"\\n"4"\\n"$6"\\n"$8;}' """
+            wfastq = sp.Popen(sh.split(awkcmd), stdin=awk2.stdout, stdout=sp.PIPE)
+            gzip = sp.Popen(['gzip'], stdin=wfastq.stdout, stdout=outf)
+        gzip.wait()
+        self.logq.put((lg.INFO, 'Barcode splitting finished.'))
+
+        merge_statistics(cnt1, cnt2)
 
     def parse_filters(self):
         """
@@ -591,177 +573,6 @@ class MainHandler(object):
         shutil.copy(logfile, self.output_dir + os.sep + 'full.log')
 
 
-class FastqFormatter(object):
-
-    def __init__(self, argdict, sample, logq, comq):
-        self.sample = sample
-        self.logq = logq
-        self.comq = comq
-        self.__dict__.update(argdict)
-
-    def build_fastq(self):
-        # compiling a simple bash script to compile a minimal fastq.gz file:
-        #
-        # cat {split}-1 {split}-2 |\
-        # awk -F "\\t" '{print "@umi:"substr($4,8,4)"\\n"$3"\\n+\\n"$7}'|\
-        # gzip > {fastq.gz}
-        #
-        fname = self.sample + '.fastq.gz'
-        target_path = self.fastq_dir + os.sep + fname
-        pre1, pre2 = self.tmp_dir+os.sep+self.sample+'-1', self.tmp_dir+os.sep+self.sample+'-2'
-        if os.path.isfile(pre1) and os.path.isfile(pre1):
-            cat = sp.Popen(['cat', pre1, pre2], stdout=sp.PIPE)
-        elif os.path.isfile(pre1):
-            cat = sp.Popen(['cat', pre1], stdout=sp.PIPE)
-        elif os.path.isfile(pre2):
-            cat = sp.Popen(['cat', pre2], stdout=sp.PIPE)
-        else:
-            cat = sp.Popen(['cat'], stdin=open(os.devnull), stdout=sp.PIPE)
-        awk = sp.Popen(sh.split('''awk -F "\\t" '{print "@umi:"substr($4,%i,%i)"\\n"$3"\\n+\\n"$7}' '''
-                                % (self.bc_len+1, self.umi_length)), stdin=cat.stdout, stdout=sp.PIPE)
-        gzip = sp.Popen(['gzip'], stdin=awk.stdout, stdout=open(target_path,'wb'))
-        gzip.wait()
-        if os.path.isfile(pre1): os.remove(pre1)
-        if os.path.isfile(pre2): os.remove(pre2)
-        self.logq.put((lg.DEBUG, '%s. ready' % fname))
-
-    def run(self):
-        try:
-            self.logq.put((lg.DEBUG, 'Started working on %s' % self.sample))
-            self.build_fastq()
-            self.comq.put(self.sample) #fastq ready
-
-        except Exception as e:
-            self.logq.put((lg.CRITICAL, 'process ended abruptly:\n%s' % traceback.format_exc(10)))
-            raise e
-
-
-class Fastq2BAM(object):
-
-    def parse_bowtie_stats(self, bt_stats):
-        # parse this output:
-        # <line>*
-        # 10263 reads;
-        # of these:
-        #     10263(100.00 %) were unpaired;
-        #     of these:
-        #         1055(10.28 %) aligned 0 times
-        #         4337(42.26 %) aligned exactly 1 time
-        #         4871(47.46 %) aligned > 1 times
-        # 89.72 % overall alignment rate
-        # <line>*
-        nlines, Ns = 0, []
-        for i, line in enumerate(bt_stats):
-            m = re.match('\s*(\d+).*', line)
-            if m is not None:
-                if int(m.group(1)) == 0: return [0, 0, 0, 0] # no reads...
-                nlines += 1
-                if nlines in [2, 3, 4, 5]:
-                    Ns.append(m.group(1))
-        return Ns
-
-    def __init__(self, argdict, sample, logq, comq):
-        self.sample = sample
-        self.logq = logq
-        self.comq = comq
-        self.__dict__.update(argdict)
-        self.fastq = self.fastq_dir + os.sep + self.sample + '.fastq.gz'
-
-    def fastq2bam(self):
-        # align, bam, sort and index:
-        #
-        # bowtie2 --local -p {N} -U {fastq.gz} -x {index} 2> {stats} | samtools view -b > {tmp}
-        # samtools view -F4 -b | samtools sort > {bam}
-        # samtools index {bam}
-        # rm {tmp}
-        #
-        #
-        tmpbam = self.tmp_dir + os.sep + self.sample + '.tmp.bam'
-        tmpstats = self.tmp_dir + os.sep + self.sample + '.bowtie.stats'
-        fname = self.sample + '.bam'
-        hname = self.sample + '.hdr.sam'
-        self.bam = os.sep.join([self.bam_dir, fname])
-        samhdr = os.sep.join([self.bam_dir, hname])
-        nbam = os.sep.join([self.output_dir, UNALIGNED_NAME, fname])
-        bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' %
-                               (self.bowtie_exec, self.n_threads, self.fastq, self.scer_index_path)),
-                      stdout=sp.PIPE, stderr=sp.PIPE)
-        awkcmd = """awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN") {print $0 > "%s";} print; }' """ % samhdr
-        geth = sp.Popen(sh.split(awkcmd), stdin=bt.stdout, stdout=sp.PIPE)
-        st = sp.Popen(sh.split('samtools view -b -o %s' % tmpbam), stdin=geth.stdout)
-        st.wait()
-        if self.keep_unaligned:
-            naligned = sp.Popen(sh.split('samtools view -f4 -b %s -o %s' % (tmpbam, nbam)), stdout=sp.PIPE)
-            self.logq.put((lg.INFO, 'unaligned BAM saved to: %s' % nbam))
-            naligned.wait()
-        aligned = sp.Popen(sh.split('samtools view -F4 -b %s' % tmpbam), stdout=sp.PIPE)
-        sort = sp.Popen(sh.split('samtools sort -o %s' % self.bam), stdin=aligned.stdout)
-        sort.wait()
-        ind = sp.Popen(sh.split('samtools index %s' % self.bam))
-        ind.wait()
-        os.remove(tmpbam)
-        Ns = self.parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
-        msg = '%s aligned. Total: %s, No: %s, Unique: %s, Non-Unique: %s)' % ((self.sample,) + tuple(Ns))
-        self.logq.put((lg.INFO, msg))
-        with open(tmpstats, 'w') as S:
-            S.write('\n'.join(['total\t%s' % Ns[0],
-                               'no-align\t%s' % Ns[1],
-                               'unique-align\t%s' % Ns[2],
-                               'multiple-align\t%s' % Ns[3]]))
-
-    def klac_count(self):
-        # align, and parse statisticsbam, sort and index.
-        # bowtie2 --local -p 4 -U {fastq.gz} -x {index} 2> {stats} >/dev/null
-        if self.klac_index_path is None: return
-        tmpstats = self.tmp_dir + os.sep + self.sample + '.bowtie.klac.stats'
-        bt = sp.Popen(sh.split('%s --local -p 4 -U %s -x %s' % (self.bowtie_exec, self.fastq, self.klac_index_path)),
-                      stderr=sp.PIPE, stdout=open(os.devnull, 'w'))
-        Ns = self.parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
-        msg = '%s aligned to k. lcatis. Total: %s, No: %s, Unique: %s, Non-Unique: %s)' % ((self.sample,) + tuple(Ns))
-        self.logq.put((lg.INFO, msg))
-        with open(tmpstats, 'w') as S:
-            S.write('\n'.join(['total\t%s' % Ns[0],
-                               'no-align\t%s' % Ns[1],
-                               'unique-align\t%s' % Ns[2],
-                               'multiple-align\t%s' % Ns[3]]))
-
-    def run(self):
-        try:
-            ct = threading.Thread(target=self.klac_count)
-            ct.start()
-            self.fastq2bam()
-            ct.join()  # making sure lactis alignment is also complete
-            self.comq.put(self.sample) #bam complete
-
-        except Exception as e:
-            self.logq.put((lg.CRITICAL, 'process ended abruptly:\n%s' % traceback.format_exc(10)))
-            raise e
-
-
-class FilterBAM(object):
-    pass
-
-    def __init__(self, argdict, sample, filter_scheme, logq, comq):
-        self.sample = sample
-        self.logq = logq
-        self.comq = comq
-        self.fscheme = filter_scheme
-        self.__dict__.update(argdict)
-
-    def run(self):
-        bamin = self.bam_dir + os.sep + self.sample + '.bam'
-        bamout = os.sep.join([self.fscheme.folder, self.sample + '.bam'])
-        self.logq.put((lg.DEBUG, 'filtering sample %s with filter %s' % (self.sample, self.fscheme.name)))
-        n = self.fscheme.filter(bamin, bamout, self.sample)
-        sfile = os.path.extsep.join([self.sample, self.fscheme.name, 'stats'])
-        s = open(self.tmp_dir + os.sep + sfile, 'w')
-        s.write(str(n))
-        s.close()
-        msg = 'filtered sample %s with filter %s (%i passed)' % (self.sample, self.fscheme.name, n)
-        self.logq.put((lg.INFO, msg))
-        self.comq.put((self.sample, self.fscheme.name))
-
-
 class AnalyzeBAM(mp.Process):
     def __init__(self, argdict, sample, filter_scheme, analysis, logq):
         self.sample = sample
@@ -787,8 +598,8 @@ def build_parser():
                         'This can be a folder (must end with "/"), in which case all R1/R2 pairs'
                         'in the folder are considered, or a "path/to/files/prefix", in which case '
                         'all files in the path with the prefix are considered')
-    g.add_argument('--start_after', '-sa', default=STATES[0],
-                   choices=[STATES[k] for k in sorted(STATE_ORDER.values())],
+    g.add_argument('--start_after', '-sa', default='BEGIN',
+                   choices=[k for k in USER_STATES.keys()],
                    help='If given the pipeline will try to continue a previous run, specified through '
                         'the "output_dir" argument, from the selected stage. In this case --fastq_prefix'
                         ' is ignored.')
@@ -824,6 +635,8 @@ def build_parser():
     g.add_argument('--hamming_distance', '-hd', default=1, type=int,
                    help='barcode upto this hamming distance from given barcodes are handled by '
                         'the pipeline')
+    g.add_argument('--keep_nobarcode', '-kbc', action='store_true',
+                   help='keep fastq entries that did not match any barcode')
 
     g = p.add_argument_group('Alignment')
     g.add_argument('--scer_index_path', '--sip', type=str, default='/cs/wetlab/genomics/bowtie_index/scer/sacCer3',
@@ -883,7 +696,8 @@ def build_parser():
 if __name__ == '__main__':
     p = build_parser()
     args = p.parse_args()
-    if args.start_after != STATES[0]:
+    args.__dict__['start_after'] = USER_STATES[args.start_after]
+    if args.start_after != BEGIN:
         if args.output_dir is None:
             print('If the --start_after option is used, an existing output directory must be provided (-od).')
             exit()
