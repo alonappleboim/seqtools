@@ -113,24 +113,33 @@ class AlignmentQualityFilter(SAMFilter):
 
 class PolyAFilter(SAMFilter):
     name = 'polyA'
-    description = 'keep only reads that are show evidence of polyadenylation - alignment issues and dA or dT tracks'
-    args = {'n': (int, 5, "minimal number of A/T at 3' end to consider a read for a polyA read")}
+    description = 'keep only reads that show evidence of polyadenylation - alignment issues at edges and dA or dT tracks'
+    args = {'n': (int, 6, "minimal number of A/T at 3' end to consider a read for a polyA read"),
+            'p': (float, .8, "fraction of extermal unmatched bases that must be A/T")}
 
     def filter(self, fin):
-        return fin
-        input = sp.Popen(sh.split('samtools view'), stdout=sp.PIPE, stdin=fin)
-        ident = '$1'  # umi
-        if self.kind == 'start&umi&cigar': ident += '$6'  # cigar string
-        if self.negate:
-            awkstr = ''.join([""" {if (prev!=$4) {delete u; u[%s]="";} """,
-                              """ else {if (%s in u) print $0; else u[%s]="";} prev=$4;} """]) % (ident, ident, ident)
-        else:
-            awkstr = ''.join([""" {if (prev != $4) {for (x in u) {print u[x];} delete u; u[%s]=$0;} """,
-                              """ else {u[%s]=$0;} prev=$4;} """,
-                              """ END {for (x in u) print u[x];} """]) % (ident, ident)
-        awk = sp.Popen(['awk', awkstr], stdin=input.stdout, stdout=sp.PIPE)
-        st = sp.Popen(sh.split('samtools view -bq %i'), stdin=awk.stdout, stdout=sp.PIPE)
-        return st.stdout
+        awkcmd = """
+        {
+        c = 0;
+        patsplit($6, T, /[MIDNSHPX]/, N)
+        split($10, seq, "");
+        SL = length(seq);
+        NL = length(N);
+        if (and($2,0x16) == 16) {
+            if (T[1] == "S" && N[0] > %i) {
+                for(i = 1; i <= N[0]; i++) if(seq[i] == "T") c++;
+                if (c > (N[0]*%f)) {print;}
+            }
+        }
+        else {
+            if (T[NL] == "S" && N[NL-1] > %i) {
+                for (i = SL; i > SL - N[NL-1]; i--) if (seq[i] == "A") c++;
+                if (c > (N[NL-1]*%f)) {print;}
+            }
+        }
+        }""".replace("\n","") % (self.n, self.p, self.n, self.p)
+        f = sp.Popen(["awk", awkcmd], stdin=fin, stdout=sp.PIPE)
+        return f.stdout
 
 
 def scheme_from_parse_tree(name, ptree):
