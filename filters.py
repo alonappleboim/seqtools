@@ -39,7 +39,7 @@ class FilterScheme(object):
             fin = fout
         addh = sp.Popen(sh.split('cat %s -' % sam_hdr), stdin=fin, stdout=sp.PIPE)
         bam = sp.Popen(sh.split('samtools view -b'), stdout=sp.PIPE, stdin=addh.stdout)
-        final = sp.Popen(sh.split('samtools sort'), stdin=bam.stdout, stdout=open(bamout, 'wb'))
+        final = sp.Popen(sh.split('samtools sort -T %s' % bamout), stdin=bam.stdout, stdout=open(bamout, 'wb'))
         final.wait()
         index = sp.Popen(sh.split('samtools index %s' % bamout))
         index.wait()

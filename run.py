@@ -3,7 +3,6 @@ This script performs the preprocessing steps and starts a dedicated process for 
  """
 
 
-import threading
 from collections import Counter
 import getpass
 import csv
@@ -19,10 +18,18 @@ import subprocess as sp
 import shlex as sh
 import shutil
 
-from workers import *
 from config import *
+
+if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
+    scriptpath = os.path.abspath(sys.modules[__name__].__file__)
+    sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
+    exit()
+
+from workers import *
+from analyzers import *
 from utils import *
-from BAM_filters import *
+from filters import *
+
 
 BEGIN = 0
 FASTQ = 1
@@ -36,52 +43,43 @@ USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'ALIGN':ALIGN, 'FILTR':FILTR}
 # instance functions if you want them to log things (only) through logq
 
 
-def write_logs(logq, user_emails=None, is_debug=False):
-    #configure logging behavior
-    logger = lg.getLogger()
-    logfile = get_logfile()
-    logger.setLevel(lg.DEBUG)
-    fh = lg.FileHandler(logfile)  # copy log to the log folder when done.
-    fh.formatter = lg.Formatter('%(levelname)s\t%(asctime)s\t%(message)s')
-    ch = lg.StreamHandler()
-    ch.formatter = lg.Formatter('%(asctime)-15s\t%(message)s')
-    fh.setLevel(lg.DEBUG)
-    ch.setLevel(lg.INFO)
-    if is_debug: ch.setLevel(lg.DEBUG)
-    if user_emails is not None:
-        mailh = ThreadedTlsSMTPHandler(mailhost=('smtp.gmail.com', 587),
-                                       fromaddr='transeq.pipeline@google.com',
-                                       toaddrs=user_emails.split(','),
-                                       credentials=('transeq.pipeline', 'transeq1234'),
-                                       subject='TRANSEQ pipeline message')
-        mailh.setLevel(lg.CRITICAL)
-        logger.addHandler(mailh)
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-
-    # get logs from Q and write them...
-    for lvl, msg in iter(logq.get, None):
-        logger.log(lvl, msg)
-
-    # send logfile name
-    logq.put(logfile)
-
-
 class MainHandler(object):
+
+    def setup_log(self):
+        logger = lg.getLogger()
+        logfile = get_logfile()
+        logger.setLevel(lg.DEBUG)
+        fh = lg.FileHandler(logfile)  # copy log to the log folder when done.
+        fh.formatter = lg.Formatter('%(levelname)s\t%(asctime)s\t%(message)s')
+        ch = lg.StreamHandler()
+        ch.formatter = lg.Formatter('%(asctime)-15s\t%(message)s')
+        fh.setLevel(lg.DEBUG)
+        ch.setLevel(lg.INFO)
+        if self.debug is not None: ch.setLevel(lg.DEBUG)
+        if self.user_emails is not None:
+            mailh = ThreadedTlsSMTPHandler(mailhost=('smtp.gmail.com', 587),
+                                           fromaddr='transeq.pipeline@google.com',
+                                           toaddrs=self.user_emails.split(','),
+                                           credentials=('transeq.pipeline', 'transeq1234'),
+                                           subject='TRANSEQ pipeline message')
+            mailh.setLevel(lg.CRITICAL)
+            logger.addHandler(mailh)
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+        self.logger = logger
+        self.logfile = logfile
 
     def __init__(self, argobj, cmdline):
         self.__dict__.update(argobj.__dict__)
 
+        self.setup_log()
         self.comq = mp.Queue()
-        self.logq = mp.Queue()
-        self.logwrtr = mp.Process(target=write_logs, args=(self.logq, self.user_emails, self.debug is not None))
         if self.debug:
-            self.logq.put((lg.INFO, '=================== DEBUG MODE (%s) ===================' % self.debug))
-        self.logwrtr.start()
+            self.logger.log(lg.INFO, '=================== DEBUG MODE (%s) ===================' % self.debug)
         self.check_third_party()
 
         msg = 'filters:\n' + '\n'.join(scheme.name+'\n'+str(scheme) for scheme in self.filters.values())
-        self.logq.put((lg.INFO, msg))
+        self.logger.log(lg.INFO, msg)
 
         self.parse_barcode_file()
         self.generate_dir_tree()
@@ -89,45 +87,54 @@ class MainHandler(object):
         self.files = {S: {s: {} for s in self.s2b.keys()}
                       for S in USER_STATES.values()}
 
+        instantiated = {}
+        for a, acls in self.analyzers.items():
+            instantiated[a] = acls(self.tmp_dir)
+        self.analyzers = instantiated
+        msg = 'analyzers:\n' + '\n'.join(a for a in self.analyzers.keys())
+        self.logger.log(lg.INFO, msg)
+
+        self.w_manager = WorkManager(self.comq, self.exec_on=='slurm')
+
     def execute(self):
         if self.start_after <= BEGIN: self.make_fastq()
         if self.start_after <= FASTQ: self.make_bam()
-        if self.start_after <= ALIGN: self.filter_bam()
+        if self.start_after <= ALIGN: self.filter()
         if self.start_after <= FILTR: self.analyze()
         self.aftermath()
 
     def make_fastq(self):
-        self.logq.put((lg.INFO, 'Re-compiling fastq files...'))
+        self.logger.log(lg.INFO, 'Re-compiling fastq files...')
         fs = self.files[FASTQ]
         self.collect_input_fastqs()
         bcout = None
         if self.keep_nobarcode:
             bcout = self.fastq_dir + os.sep + NO_BC_NAME + '.fastq.gz'
         self.split_barcodes(no_bc=bcout)
-        fastq_ncomplete = set([])
+        token_map = {}
         for bc, sample in self.b2s.items():
-            fastq_ncomplete.add(sample)
+
             fs[sample]['in1'] = self.tmp_dir + os.sep + sample + '-1'
             fs[sample]['in2'] = self.tmp_dir + os.sep + sample + '-2'
             fs[sample]['fastq'] = self.fastq_dir + os.sep + sample + '.fastq.gz'
-            args = (sample, fs[sample], self.comq, self.bc_len, self.umi_length)
-            start_worker(format_fastq, args=args)
-        while fastq_ncomplete:
-            (sample, status) = self.comq.get()
-            fastq_ncomplete.remove(sample)
-            if status == 'ok':
+            args = dict(files=fs[sample], bc_len=self.bc_len, umi_len=self.umi_length)
+            token_map[self.w_manager.run(format_fastq, kwargs=args)] = sample
+        while token_map:
+            tok, e, info = self.comq.get()
+            sample = token_map.pop(tok)
+            if e is not None:
+                msg = 'error in processing sample %s:\n%s' % (sample, e)
+                self.logger.log(lg.CRITICAL, msg)
+            else:
                 # in principal the next step could start now, but then recovery options make the code
                 # practically unreadable, and the performance benefit is very small
-                self.logq.put((lg.DEBUG, '%s ready.' % fs[sample]['fastq']))
-            else:
-                msg = 'error in processing sample %s:\n%s' % (sample, status)
-                self.logq.put((lg.CRITICAL, msg))
-        self.logq.put((lg.INFO, 'fastq files were written to: %s' % self.fastq_dir))
+                self.logger.log(lg.DEBUG, '%s ready.' % fs[sample]['fastq'])
+        self.logger.log(lg.INFO, 'fastq files were written to: %s' % self.fastq_dir)
         self.mark(FASTQ)
 
     def make_bam(self):
-        self.logq.put((lg.INFO, 'Aligning to genome...'))
-        bam_ncomplete = set([])
+        self.logger.log(lg.INFO, 'Aligning to genome...')
+        token_map = {}
         for bc, sample in self.b2s.items():
             f = self.files[ALIGN][sample]
             f['fastq'] = self.files[FASTQ][sample]['fastq']
@@ -139,19 +146,20 @@ class MainHandler(object):
                 f['klac_align_stats'] = self.tmp_dir + os.sep + sample + '.klac' + BT_STATS_SUFF
             if self.keep_unaligned:
                 f['unaligned_bam'] = self.unaligned_dir + os.sep + sample + '.bam'
-            args = (sample, self.files[ALIGN][sample], self.comq, self.bowtie_exec,
-                    self.n_threads, self.scer_index_path, self.klac_index_path)
-            start_worker(align, args=args)
-            bam_ncomplete.add(sample)
+            args = dict(files=self.files[ALIGN][sample], bowtie_exec=self.bowtie_exec,
+                        n_threads=self.n_threads, scer=self.scer_index_path, klac=self.klac_index_path)
+            token_map[self.w_manager.run(align, kwargs=args)] = sample
 
-        while bam_ncomplete:
-            (sample, status) = self.comq.get()
-            bam_ncomplete.remove(sample)
-            if status == 'ok':
-                self.logq.put((lg.DEBUG, '%s ready.' % self.files[ALIGN][sample]['bam']))
+        while token_map:
+            tok, e, info = self.comq.get()
+            sample = token_map.pop(tok)
+            if e is not None:
+                msg = 'error in aligning sample %s:\n%s' % (sample, e)
+                self.logger.log(lg.CRITICAL, msg)
             else:
-                msg = 'error while aligning sample %s:\n%s' % (sample, status)
-                self.logq.put((lg.CRITICAL, msg))
+                # in principal the next step could start now, but then recovery options make the code
+                # practically unreadable, and the performance benefit is very small
+                self.logger.log(lg.DEBUG, '%s ready.' % self.files[ALIGN][sample]['bam'])
 
         for f in os.listdir(self.tmp_dir):
             if not f.endswith(BT_STATS_SUFF): continue
@@ -167,39 +175,66 @@ class MainHandler(object):
             os.remove(fpath)
         self.mark(ALIGN)
 
-    def filter_bam(self):
-        self.logq.put((lg.INFO, 'Filtering the reads...'))
-        filter_ncomplete = set([])
+    def filter(self):
+        self.logger.log(lg.INFO, 'Filtering the reads...')
+        token_map = {}
         for bc, sample in self.b2s.items():
             for f, fscheme in self.filters.items():
                 files = self.files[FILTR][sample][f] = {}
                 files['bam_in'] = self.files[ALIGN][sample]['bam']
                 files['sam_hdr'] = self.files[ALIGN][sample]['sam_hdr']
                 files['bam_out'] = os.sep.join([self.output_dir, f, self.bam_dirname, sample + '.bam'])
-                args = (sample, files, self.comq, fscheme)
-                start_worker(filter_bam, args=args)
-                filter_ncomplete.add((sample, f))
+                args = dict(files=files, fscheme=fscheme)
+                token_map[self.w_manager.run(filter_bam, kwargs=args)] = (sample, f)
 
-        while filter_ncomplete:
-            (sample, f, status, cnt) = self.comq.get()
-            filter_ncomplete.remove((sample, f))
-            if status == 'ok':
+        while token_map:
+            tok, e, info = self.comq.get()
+            sample, filter = token_map.pop(tok)
+            if e is not None:
+                msg = 'error while filtering sample %s with filter %s:\n%s' % (sample, filter, e)
+                self.logger.log(lg.CRITICAL, msg)
+            else:
+                # in principal the next step could start now, but then recovery options make the code
+                # practically unreadable, and the performance benefit is very small
                 stat = 'passed:%s' % f
                 if stat not in self.stat_order: self.stat_order.append(stat)
-                self.stats[sample][stat] += cnt
-                self.logq.put((lg.DEBUG, 'filtered %s with %s (%i passed).' % (sample, f, cnt)))
-            else:
-                msg = 'error while filtering sample %s with filter %s:\n%s' % (sample, f, status)
-                self.logq.put((lg.CRITICAL, msg))
+                self.stats[sample][stat] += info
+                self.logger.log(lg.DEBUG, 'filtered %s with %s (%i passed).' % (sample, f, info))
+
         self.mark(FILTR)
 
     def analyze(self):
-        pass
+        self.logger.log(lg.INFO, 'Analyzing the data...')
+        token_map = {}
+        for bc, sample in self.b2s.items():
+            for f, fscheme in self.filters.items():
+                for aname, analyzer in self.analyzers.items():
+                    files = self.files[FILTR][sample][f][aname] = {}
+                    files['bam_in'] = self.files[FILTR][sample][f]['bam_out']
+                    for s in analyzer.suffixes.keys():
+                        files[s] = os.sep.join([self.output_dir, analyzer.out_folder, sample + '_' + f + s])
+                    args = dict(files=files, analyzer=analyzer)
+                    token_map[self.w_manager.run(analyze_bam, kwargs=args)] = (sample, f, aname)
+        while token_map:
+            tok, e, info = self.comq.get()
+            sample, filter, analyzer = token_map.pop(tok)
+            if e is not None:
+                msg = 'error while analyzing (%s, %s) with %s analysis:\n %s' % (sample, filter, analyzer, e)
+                self.logger.log(lg.CRITICAL, msg)
+            else:
+                # in principal the next step could start now, but then recovery options make the code
+                # practically unreadable, and the performance benefit is very small
+                if info:
+                    for s, cnt in info.items():
+                        stat = '%s:%s' % (filter, s)
+                        if stat not in self.stat_order: self.stat_order.append(stat)
+                        self.stats[sample][stat] += info
+                self.logger.log(lg.DEBUG, 'analyzed (%s, %s) with %s.' % (sample, f, analyzer))
 
     def print_stats(self):
         stats = set([])
         fns = ['sample'] + self.stat_order
-        fh = open(self.output_dir + os.sep + 'sample_statistics.csv','w')
+        fh = open(self.output_dir + os.sep + self.exp + '_statistics.csv','w')
         wrtr = csv.DictWriter(fh, fns)
         wrtr.writeheader()
         for s, st in self.stats.items():
@@ -210,8 +245,9 @@ class MainHandler(object):
         self.print_stats()
         stage = STATES[stage]
         msg = ('Finished stage %s. You can continue the pipeline from this point '
-               'with the option -sa %s (--start_after %s)'  % (stage, stage, stage))
-        self.logq.put((lg.INFO, msg))
+               'with the option -sa %s (--start_after %s)' % (stage, stage, stage))
+        self.logger.log(lg.INFO, msg)
+        self.copy_log()
         fh = open(self.output_dir + os.sep + '.pipeline_state', 'w')
         fh.write('%s\n' % stage)
         fh.close()
@@ -222,6 +258,9 @@ class MainHandler(object):
         fh.close()
         return stage
 
+    def copy_log(self):
+        shutil.copy(self.logfile, self.output_dir + os.sep + 'full.log')
+
     def prepare_outputs(self):
         pass
 
@@ -230,18 +269,18 @@ class MainHandler(object):
             try:
                 p = sp.Popen(sh.split('srun "slurm, are you there?"'), stdout=sp.PIPE, stderr=sp.PIPE)
                 p.communicate()
-                self.logq.put((lg.INFO, "slurm check.. OK"))
+                self.logger.log(lg.INFO, "slurm check.. OK")
             except OSError as e:
-                self.logq.put((lg.CRITICAL, "This is not a slurm cluster, execute with flag -eo=local"))
+                self.logger.log(lg.CRITICAL, "This is not a slurm cluster, execute with flag -eo=local")
                 raise e
 
         for ex in [k for k in self.__dict__.keys() if k.endswith('exec')]:
             try:
                 p = sp.Popen(sh.split('%s --help' % self.__dict__[ex]), stdout=sp.PIPE, stderr=sp.PIPE)
                 p.communicate()
-                self.logq.put((lg.INFO, "%s check.. OK" % ex))
+                self.logger.log(lg.INFO, "%s check.. OK" % ex)
             except OSError as e:
-                self.logq.put((lg.CRITICAL, "could not resolve %s path: %s" % (ex, self[ex])))
+                self.logger.log(lg.CRITICAL, "could not resolve %s path: %s" % (ex, self[ex]))
                 raise e
 
     def parse_barcode_file(self):
@@ -250,12 +289,12 @@ class MainHandler(object):
             if exp is None:
                 msg = 'barcodes file should contain a header with experiment name: ' \
                       'experiment: <expname>'
-                self.logq.put((lg.CRITICAL, msg))
+                self.logger.log(lg.CRITICAL, msg)
                 raise ValueError(msg)
             self.user = getpass.getuser()
             self.exp = exp.group(1)
             msg = 'user: %s, experiment: %s' % (self.user, self.exp)
-            self.logq.put((lg.INFO, msg))
+            self.logger.log(lg.INFO, msg)
             b2s, s2b = {}, {}
             bl = None
             for i, line in enumerate(BCF):
@@ -279,8 +318,8 @@ class MainHandler(object):
                 s2b[s] = b
 
             msg = '\n'.join(['barcodes:'] + ['%s -> %s' % bs for bs in b2s.items()])
-            self.logq.put((lg.DEBUG, msg))
-            self.logq.put((lg.INFO, 'found %i samples.' % len(b2s)))
+            self.logger.log(lg.DEBUG, msg)
+            self.logger.log(lg.INFO, 'found %i samples.' % len(b2s))
 
         self.b2s = b2s
         self.s2b = s2b
@@ -311,10 +350,10 @@ class MainHandler(object):
 
         files = [f for f in files.values() if type(()) == type(f)]
         msg = '\n'.join('found fastq files:\n%s\n%s' % fs for fs in files)
-        self.logq.put((lg.INFO, msg))
+        self.logger.log(lg.INFO, msg)
         if not files:
             msg = "could not find R1/R2 fastq.gz pairs in given folder: %s" % self.fastq_path
-            self.logq.put((lg.CRITICAL, msg))
+            self.logger.log(lg.CRITICAL, msg)
             raise IOError(msg)
         self.input_files = files
 
@@ -324,15 +363,15 @@ class MainHandler(object):
                 cur = self.get_mark()
                 if USER_STATES[cur] >= USER_STATES[self.start_after]:
                     msg = 'restarting from %s in folder: %s ' % (self.start_after, self.output_dir)
-                    self.logq.put((lg.INFO, msg))
+                    self.logger.log(lg.INFO, msg)
                 else:
                     msg = 'folder state %s in folder %s incompatible with start_after %s request' \
                           % (cur, self.output_dir, self.start_after)
-                    self.logq.put((lg.CRITICAL, msg))
+                    self.logger.log(lg.CRITICAL, msg)
                     exit()
             except IOError:
                 msg = 'could not find an existing output folder: %s' % self.output_dir
-                self.logq.put((lg.CRITICAL, msg))
+                self.logger.log(lg.CRITICAL, msg)
                 exit()
         else:
             if self.output_dir is None:
@@ -368,11 +407,15 @@ class MainHandler(object):
                 self.unaligned_dir = d + os.sep + UNALIGNED_NAME
                 self.create_dir_and_log(self.unaligned_dir)
 
-        for f, scheme in self.filters.items():
-            create_dir(os.sep.join([self.output_dir, f]))
-            filter_folder = os.sep.join([self.output_dir, f, self.bam_dirname])
-            create_dir(filter_folder)
-            scheme.folder = filter_folder
+        if self.start_after <= ALIGN:
+            for f, scheme in self.filters.items():
+                create_dir(os.sep.join([self.output_dir, f]))
+                filter_folder = os.sep.join([self.output_dir, f, self.bam_dirname])
+                create_dir(filter_folder)
+                scheme.folder = filter_folder
+
+        for a, acls in self.analyzers.items():
+            create_dir(os.sep.join([self.output_dir, acls.out_folder]))
 
     def split_barcodes(self, no_bc=None):
         #
@@ -417,7 +460,7 @@ class MainHandler(object):
                 if s not in self.stats:
                     self.stats[s][stat] += 0
             msg = '\n'.join(['%s: %i' % (s, c['#reads']) for s, c in self.stats.items()])
-            self.logq.put((lg.CRITICAL, 'read counts:\n' + msg))
+            self.logger.log(lg.CRITICAL, 'read counts:\n' + msg)
 
         hb = {}
         for b,s in self.b2s.items():
@@ -428,7 +471,7 @@ class MainHandler(object):
         outf = open(os.devnull, 'w') if no_bc is None else open(no_bc, 'wb')
         for r1, r2 in self.input_files:
             msg = 'splitting files:\n%s\n%s' % (os.path.split(r1)[1],os.path.split(r2)[1])
-            self.logq.put((lg.INFO, msg))
+            self.logger.log(lg.INFO, msg)
             paste1 = sp.Popen('paste <(zcat %s) <(zcat %s)' % (r1,r2), stdout=sp.PIPE,
                               shell=True, executable='/bin/bash')
             awkin = sp.Popen(sh.split('paste - - - -'), stdin=paste1.stdout, stdout=sp.PIPE)
@@ -440,7 +483,7 @@ class MainHandler(object):
             wfastq = sp.Popen(sh.split(awkcmd), stdin=awk2.stdout, stdout=sp.PIPE)
             gzip = sp.Popen(['gzip'], stdin=wfastq.stdout, stdout=outf)
         gzip.wait()
-        self.logq.put((lg.INFO, 'Barcode splitting finished.'))
+        self.logger.log(lg.INFO, 'Barcode splitting finished.')
 
         merge_statistics(cnt1, cnt2)
 
@@ -451,15 +494,12 @@ class MainHandler(object):
         # merge and report statistics
         # merge data to single (usable) files
 
-        self.logq.put((lg.CRITICAL, 'All done.'))
-        self.logq.put_nowait(None)
-        self.logwrtr.join()
-        logfile = self.logq.get()
-        shutil.copy(logfile, self.output_dir + os.sep + 'full.log')
+        self.logger.log(lg.CRITICAL, 'All done.')
+        self.copy_log()
 
     def create_dir_and_log(self, path, level=lg.DEBUG):
         create_dir(path)
-        self.logq.put((level, 'creating folder %s' % path))
+        self.logger.log(level, 'creating folder %s' % path)
 
 
 def build_parser():
@@ -528,8 +568,8 @@ def build_parser():
                              description='different filters applied to base BAM file. Each filter result is '
                                          'processeed downstream and reported separately')
     g.add_argument('--filters', '-F', action='store',
-                   default='non-unique:qual(q=10)-,dup()+;unique:dup(),qual(q=10)+;'
-                           'unique-polya:dup()+,qual(q=1)+,polyA(n=5)+',
+                   default='non-unique:qual(q=5)-,dup()+;unique:dup(),qual(q=5)+;'
+                           'unique-polya:dup()+,qual(q=5)+,polyA(n=5)+',
                    help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
                         '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
                         'resulting outputs from this branch of the data. use "run -fh" for more info.')
@@ -540,11 +580,10 @@ def build_parser():
                              description='different analyses applied to filtered BAM files. Each analysis is '
                                          'performed on single samples, and when all is done, results are merged '
                                          'to a single file in the output/path/results folder')
-    g.add_argument('--analyses', '-A', action='store',
-                   default='coverage(); XXXX',
-                   help='XXX')
+    g.add_argument('--analyses', '-A', action='store', default='3pT,covT',
+                   help='specify analyses to apply to data. a comma separated list (see run -ah" for more info).')
     g.add_argument('--analysis_specs', '-ah', action='store_true',
-               default='print available filter specs and filter help and exit')
+               default='print available analyses specs and analysis help and exit')
 
     g = p.add_argument_group('Execution and third party')
     g.add_argument('--exec_on', '-eo', choices=['slurm', 'local'], default='slurm',
@@ -601,6 +640,14 @@ def parse_args(p):
         args.__dict__['output_dir'] = canonic_path(args.__dict__['output_dir'])
 
     args.__dict__['filters'] = build_filter_schemes(args.filters)
+
+    analyzers, sel_a = collect_analyzers(), {}
+    for a in args.analyses.split(','):
+        if a not in analyzers:
+            print("could not resolve analyzer '%s', use run -ah for more details" % a)
+            exit()
+        else: sel_a[a] = analyzers[a]  # still need to instantiate them
+    args.__dict__['analyzers'] = sel_a
 
     return args
 

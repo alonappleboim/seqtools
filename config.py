@@ -14,7 +14,19 @@ TMP_BAM_SUFF = '.tmp.bam'
 BT_STATS_SUFF = '.bowtie.stats'
 
 # executables
+INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 BOWTIE_EXEC = 'bowtie2'
 SAMTOOLS_EXEC = 'samtools'
 BG2W_EXEC = LOCAL_BIN+'bedGraphToBigWig'
 GC_EXEC = 'genomeCoverageBed'
+
+#error handling
+RETRY_INTERVAL = 5  # sec
+RETRIALS = 3
+
+#meta
+SCER_GENOME_LENGTH_PATH = '/cs/wetlab/genomics/genomes/scer/sacCer3.sizes'
+
+STRANDS = {'w': '+', 'c': '-'}
+
+

@@ -49,3 +49,5 @@ def block_exec(command, on_slurm, stdout=None):
 
 def canonic_path(fname):
     return os.path.abspath(os.path.expanduser(fname))
+
+
