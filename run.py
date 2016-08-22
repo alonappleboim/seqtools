@@ -28,19 +28,17 @@ if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
 from workers import *
 from analyzers import *
 from utils import *
-from filters import *
+from singleend_filters import *
 
 
 BEGIN = 0
 FASTQ = 1
 ALIGN = 2
 FILTR = 3
+SPLIT = 4
 
-STATES = ['BEGIN', 'FASTQ', 'ALIGN', 'FILTR']
-USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'ALIGN':ALIGN, 'FILTR':FILTR}
-
-# global functions should not log to logger, wrap them with
-# instance functions if you want them to log things (only) through logq
+STATES = ['BEGIN', 'FASTQ', 'ALIGN', 'FILTR', 'SPLIT']
+USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'ALIGN':ALIGN, 'FILTR':FILTR, 'SPLIT':SPLIT}
 
 
 class MainHandler(object):
@@ -563,18 +561,25 @@ def build_parser():
                    help='if set, unaligned reads are written to '
                         'output_folder/%s/<sample_name>.bam' % UNALIGNED_NAME)
 
-    # filters = get_filters()
-    g = p.add_argument_group('Filters',
+    g = p.add_argument_group('Filters and Splitters',
                              description='different filters applied to base BAM file. Each filter result is '
                                          'processeed downstream and reported separately')
     g.add_argument('--filters', '-F', action='store',
-                   default='non-unique:qual(q=5)-,dup()+;unique:dup(),qual(q=5)+;'
-                           'unique-polya:dup()+,qual(q=5)+,polyA(n=5)+',
+                   default='unique:dup(),qual(qmin=5)+',
                    help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
                         '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
                         'resulting outputs from this branch of the data. use "run -fh" for more info.')
     g.add_argument('--filter_specs', '-fh', action='store_true',
                    default='print available filter specs and filter help and exit')
+
+    g = p.add_argument_group('Filters',
+                             description='different filters applied to base BAM file. Each filter result is '
+                                         'processeed downstream and reported separately')
+    g.add_argument('--split', '-S', action='store',
+                   default='[pA, [+:polyA()+, -:polyA()-)]],[str, [w:strand()+,c:strand()-]]',
+                   help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
+                        '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
+                        'resulting outputs from this branch of the data. use "run -fh" for more info.')
 
     g = p.add_argument_group('Analyses',
                              description='different analyses applied to filtered BAM files. Each analysis is '

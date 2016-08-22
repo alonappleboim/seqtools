@@ -20,6 +20,9 @@ def collect_filters():
 
 
 class FilterScheme(object):
+    """
+    Collects the "And" result of multiple filters
+    """
 
     def __init__(self, name, filters=None):
         if not filters: filters = []
@@ -80,7 +83,11 @@ class SAMFilter(object):
         return ','.join('%s:%s' % (k, str(v)) for k,v in self.__dict__.items())
 
 
-class DuplicateFilter(SAMFilter):
+class SingleEndFilter(SAMFilter):
+    __metaclass__ = ABCMeta
+
+
+class DuplicateFilter(SingleEndFilter):
     name = 'dup'
     description = 'remove artificially amplified reads'
     args = {'kind': (str, 'start&umi&cigar', 'the method of choice for removal: "start&umi", "start&umi&cigar"')}
@@ -99,19 +106,21 @@ class DuplicateFilter(SAMFilter):
         return f.stdout
 
 
-class AlignmentQualityFilter(SAMFilter):
+class AlignmentQualityFilter(SingleEndFilter):
     name = 'qual'
     description = 'remove reads with low alignment quality (see bowtie/SAM documentation)'
-    args = {'q': (int, 5, 'the minimal quality for an alignment to pass the filter')}
+    args = {'qmin': (int, 5, 'minimal quality, exclusive'),
+            'qmax': (int, 255, 'maximal quality, exclusive')}
 
     def filter(self, fin):
-        comparator = '<=' if self.negate else '>'
-        f = sp.Popen(sh.split("awk '{if ($5 %s %i) {print;}}'" % (comparator, self.q)),
-                     stdin=fin, stdout=sp.PIPE)
+        awkcmd = "{if ($5 < %i && $5 > %i) {print;}}" % (self.qmax, self.qmin)
+        if self.negate:
+            awkcmd = "{if ($5 >= %i || $5 <= %i) {print;}}" % (self.qmax, self.qmin)
+        f = sp.Popen(['awk', awkcmd], stdin=fin, stdout=sp.PIPE)
         return f.stdout
 
 
-class PolyAFilter(SAMFilter):
+class PolyAFilter(SingleEndFilter):
     name = 'polyA'
     description = 'keep only reads that show evidence of polyadenylation - alignment issues at edges and dA or dT tracks'
     args = {'n': (int, 6, "minimal number of A/T at 3' end to consider a read for a polyA read"),
@@ -121,6 +130,7 @@ class PolyAFilter(SAMFilter):
         awkcmd = """
         {
         c = 0;
+        p = 0;
         patsplit($6, T, /[MIDNSHPX]/, N)
         split($10, seq, "");
         SL = length(seq);
@@ -128,16 +138,32 @@ class PolyAFilter(SAMFilter):
         if (and($2,0x16) == 16) {
             if (T[1] == "S" && N[0] > %i) {
                 for(i = 1; i <= N[0]; i++) if(seq[i] == "T") c++;
-                if (c > (N[0]*%f)) {print;}
+                if (c > (N[0]*%f)) {p = 1;}
             }
         }
         else {
             if (T[NL] == "S" && N[NL-1] > %i) {
                 for (i = SL; i > SL - N[NL-1]; i--) if (seq[i] == "A") c++;
-                if (c > (N[NL-1]*%f)) {print;}
+                if (c > (N[NL-1]*%f)) {p = 1;}
             }
         }
-        }""".replace("\n","") % (self.n, self.p, self.n, self.p)
+        if (p == %i) { print;}
+        }""".replace("\n","") % (self.n, self.p, self.n, self.p, 0 if self.negate else 1)
+        f = sp.Popen(["awk", awkcmd], stdin=fin, stdout=sp.PIPE)
+        return f.stdout
+
+
+class StrandFilter(SingleEndFilter):
+    name = 'strand'
+    description = 'keep only reads that are in specified strand'
+    args = {'s': (str, 'w', "'w' - watson, 'c' - crick")}
+
+    def filter(self, fin):
+        if self.s == 'w':
+            sym = '==' if not self.negate else '!='
+        else:
+            sym = '!=' if not self.negate else '=='
+        awkcmd = """ { if (and($2,0x16) %s 16) {print;} }""" % sym
         f = sp.Popen(["awk", awkcmd], stdin=fin, stdout=sp.PIPE)
         return f.stdout
 

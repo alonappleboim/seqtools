@@ -8,13 +8,13 @@ def create_dir(path):
     if not os.path.exists(path): os.mkdir(path)
 
 
-def get_logfile():
+def get_logfile(string=''):
     now = datetime.datetime.now()
     p = LOG_PATH + os.sep + str(now.year)
     create_dir(p)
     p += os.sep + str(now.month)
     create_dir(p)
-    fname = '%s-%i-%ih%im%s' % (getpass.getuser(), now.day, now.hour, now.minute, now.second)
+    fname = '%s-%i-%ih%im%s-%s' % (getpass.getuser(), now.day, now.hour, now.minute, now.second, string)
     return p + os.sep + fname
 
 

@@ -109,8 +109,8 @@ def align(files, bowtie_exec, n_threads, scer, klac):
     if klac is not None:
         ct = threading.Thread(target=klac_count)
         ct.start()
-        bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (bowtie_exec, n_threads, files['fastq'], scer)),
-                      stdout=sp.PIPE, stderr=sp.PIPE)
+    bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (bowtie_exec, n_threads, files['fastq'], scer)),
+                  stdout=sp.PIPE, stderr=sp.PIPE)
     awkcmd = ''.join(("""awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN")""",
                       """{print $0 > "%s";} print; }' """)) % files['sam_hdr']
     geth = sp.Popen(sh.split(awkcmd), stdin=bt.stdout, stdout=sp.PIPE)
