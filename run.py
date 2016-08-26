@@ -3,6 +3,7 @@ This script performs the preprocessing steps and starts a dedicated process for 
  """
 
 
+import stat
 from collections import Counter, OrderedDict
 import getpass
 import csv
@@ -19,6 +20,7 @@ import shlex as sh
 import shutil
 
 from config import *
+import time
 
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     scriptpath = os.path.abspath(sys.modules[__name__].__file__)
@@ -26,6 +28,7 @@ if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     exit()
 
 from workers import *
+from exporters import *
 from analyzers import *
 from utils import *
 from filters import *
@@ -190,6 +193,7 @@ class MainHandler(object):
         self.stats = {s.base_name(): Counter() for s in self.samples.values()}
         self.stat_order = []
         self.fpipe = build_filter_schemes('filter:'+self.filter)['filter']
+        self.exporters = exporters_from_string(self.exporters, self.output_dir)
         self.w_manager = WorkManager(self.comq, self.exec_on=='slurm')
 
     def execute(self):
@@ -197,6 +201,7 @@ class MainHandler(object):
         if self.start_after <= FASTQ: self.make_bam()
         if self.start_after <= BAM: self.track()
         if self.start_after <= BAM: self.count()
+        if self.start_after <= BAM: self.export()
         self.aftermath()
 
     def make_fastq(self):
@@ -257,6 +262,9 @@ class MainHandler(object):
             else:
                 # in principal the next step could start now, but then recovery options make the code
                 # practically unreadable, and the performance benefit is very small
+                if 'passed_filter' not in self.stat_order:
+                    self.stat_order.append('passed_filter')
+                self.stats[sample.base_name()]['passed_filter'] = info
                 self.logger.log(lg.DEBUG, '%s ready.' % sf['bam'])
 
         for f in os.listdir(self.tmp_dir):
@@ -307,7 +315,7 @@ class MainHandler(object):
             args = dict(annot_file=self.tts_file, window=self.count_window, files=sf)
             token_map[self.w_manager.run(count, kwargs=args)] = sample
 
-        cnt_dict = {}
+        self.cnts = {}
         while token_map:
             tok, e, info = self.comq.get()
             sample = token_map.pop(tok)
@@ -315,27 +323,42 @@ class MainHandler(object):
                 msg = 'error in counting sample %s:\n%s' % (sample, e)
                 self.logger.log(lg.CRITICAL, msg)
             else:
-                cnt_dict[sample] = info
-                # for line in f:
-                #     sline = line.split('\t')
-                #     acc = sline[3].strip()
-                #     if acc not in cnt_dict: cnt_dict[acc] = {}
-                #     cnt_dict[acc][sample] = sline[6].strip()
-                # f.close()
-                # os.remove(sample.files['tmp_cnt'])
+                self.cnts[sample] = info
+                self.cnt_ids = info.keys()
                 self.logger.log(lg.DEBUG, 'Collected counts for sample %s' % sample)
 
-        #now collect all counts to a single file...
-        cnts_name = self.output_dir + os.sep + self.counts_file
-        fout = open(cnts_name, 'w')
-        # header:
-        for f in self.features.values():
-            fout.write(str(f)+'\t'+'\t'.join(str(s.fvals[f]) for s in self.samples.values())+'\n')
-        #counts
-        for acc in info.keys():
-            fout.write(acc+'\t'+'\t'.join(cnt_dict[s][acc] for s in self.samples.values())+'\n')
-        fout.close()
-        self.logger.log(lg.CRITICAL, 'Collected all counts into %s' % cnts_name)
+    def export(self):
+        stats = {self.get_sample(s):cnt for s, cnt in self.stats.items()}
+        all = [('stats', stats, self.stat_order),
+               ('tts_counts', self.cnts, self.cnt_ids)]
+        for e in self.exporters:
+            fs = e.export(self.features, all)
+            for f in fs:
+                self.logger.log(lg.INFO, 'Exported data to file: %s' % f)
+                if self.export_path is not None:
+                    target = self.export_path + os.sep + f
+                    shutil.copy(f, target)
+                    self.logger.log(lg.DEBUG, 'Copied data to: %s' % target)
+
+    def get_sample(self, sstr):
+        cands = self.samples.values()
+        no_sample = False
+        for featval in sstr.split('_'):
+            f, v = featval.split('-')
+            f = [F for F in self.features.values() if F.short_name == f]
+            if not f:
+                no_sample = True
+                break
+            f = f[0]
+            v = f.type(v)
+            cands = [c for c in cands if c.fvals[f] == v]
+        if len(cands) > 1: no_sample = True
+        if no_sample:
+            s = Sample()
+            for f in self.features.values(): s.fvals[f] = None
+        else:
+            s = cands[0]
+        return s
 
     def print_stats(self):
         stats = set([])
@@ -416,7 +439,7 @@ class MainHandler(object):
                                "its short_name matched a previous generated short name):\n%s" % f, snames)
                         self.logger.log(lg.CRITICAL, msg)
                         raise (ValueError(msg))
-                    features.add_feature(f_pos_map [i])
+                    features.add_feature(f_pos_map[i])
             return features, f_pos_map
 
         def parse_samples(file, f_pos_map):
@@ -482,7 +505,6 @@ class MainHandler(object):
 
     def collect_input_fastqs(self):
         files = {}
-
         for fn in os.listdir(self.fastq_path):
             if not fn.endswith('fastq.gz'): continue
             if not fn.startswith(self.fastq_pref): continue
@@ -576,7 +598,7 @@ class MainHandler(object):
         :param no_bc: if given, orphan fastq enries are written to this prefix (with R1/R2 interleaved)
         """
         def compile_awk(it, b2s):
-            cnt_path = self.tmp_dir + os.sep + (BC_COUNTS_FNAME %  it)
+            cnt_path = self.tmp_dir + os.sep + (BC_COUNTS_FNAME % it)
             nobc = NO_BC_NAME + '-' + it
             arraydef = ';\n'.join('a["%s"]="%s-%s"' % (b, s, it) for b, s in b2s.items()) + ';\n'
             awk_str = (""" 'BEGIN {%s} {x=substr($4,1,%i); if (x in a) """,
@@ -627,6 +649,7 @@ class MainHandler(object):
             awkcmd = """awk -F "\\t" '{print $1"\\n"$3"\\n"$5"\\n"$7; print $2"\\n"4"\\n"$6"\\n"$8;}' """
             wfastq = sp.Popen(sh.split(awkcmd), stdin=awk2.stdout, stdout=sp.PIPE)
             gzip = sp.Popen(['gzip'], stdin=wfastq.stdout, stdout=outf)
+            wfastq.wait() # to prevent data interleaving
         gzip.wait()
         self.logger.log(lg.INFO, 'Barcode splitting finished.')
 
@@ -641,6 +664,15 @@ class MainHandler(object):
         # merge data to single (usable) files
         if self.debug is None:
             shutil.rmtree(self.tmp_dir)
+
+        # change permissions so everyone can read into folder
+        for d, _, fs in os.walk(self.output_dir):
+            st = os.stat(d)
+            os.chmod(d, st.st_mode | stat.S_IRGRP | stat.S_IXGRP)
+        #     for f in fs:
+        #         path = os.sep.join([d,f])
+        #         st = os.stat(path)
+        #         os.chmod(path, st.st_mode)# | stat.S_IRGRP)
         self.logger.log(lg.CRITICAL, 'All done.')
         self.copy_log()
 
@@ -739,9 +771,13 @@ def build_parser():
                         '"end", and "TTS" columns.')
     g.add_argument('--count_window', '-cw', default='-100,500',
                    help='Comma separated limits for tts counting, relative to annotation TTS.')
-    g.add_argument('--counts_file', '-cf', default='counts.tab',
-                   help='tab delimited file with a row per annotation and a column per sample, first'
-                        'rows are sample variable values, for easy indexing into the columns')
+
+    g = p.add_argument_group('Export')
+    g.add_argument('--exporters', '-E', action='store',
+                   default='tab();mat(r=1)',
+                   help='specify a exporters for the pipeline data and statistics')
+    g.add_argument('--export_path', '-ep', default=None,
+                   help='if given, exported data is copied to this path as well')
     return p
 
 

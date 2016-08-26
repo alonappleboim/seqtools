@@ -127,9 +127,9 @@ def make_bam(files, bowtie_exec, n_threads, scer, klac, fpipe):
                            'multiple-align\t%s' % Ns[3]]))
     if klac is not None:
         ct.join()  # making sure lactis alignment is also complete
-    fpipe.filter(files['unfiltered_bam'], files['bam'], files['sam_hdr'], files['bam_f'])
+    n = fpipe.filter(files['unfiltered_bam'], files['bam'], files['sam_hdr'], files['bam_f'])
     os.remove(files['unfiltered_bam'])
-    return None
+    return n
 
 
 def make_tracks(files):
