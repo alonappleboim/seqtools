@@ -8,6 +8,19 @@ def create_dir(path):
     if not os.path.exists(path): os.mkdir(path)
 
 
+def buff_lines(buffer, buf_size=1024):
+    prev = ''
+    while True:
+        data = buffer.read(buf_size)
+        if not data: break
+        else:
+            lines = ''.join(data.decode('utf-8')).split('\n')
+            lines[0] = prev + lines[0]
+            prev = lines.pop(-1)
+            for line in lines: yield line
+    yield prev
+
+
 def get_logfile(string=''):
     now = datetime.datetime.now()
     p = LOG_PATH + os.sep + str(now.year)
@@ -49,5 +62,10 @@ def block_exec(command, on_slurm, stdout=None):
 
 def canonic_path(fname):
     return os.path.abspath(os.path.expanduser(fname))
+
+
+if __name__ == '__main__':
+    for i,line in enumerate(buff_lines(open('README','rb'), 256)): print(line)
+    print(i)
 
 

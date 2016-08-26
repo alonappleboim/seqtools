@@ -27,7 +27,7 @@ if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
 
 from workers import *
 from utils import *
-from singleend_filters import *
+from filters import *
 
 
 class Aspect(object):
@@ -68,7 +68,7 @@ def split(self, infiles, filter_partition, output_folder):
     fschemes = {}
     for path in cartesian_prod(filter_partition):
         name = '_'.join('%s-%s' % (g, name) for (g, (name, f)) in path)
-        fs = FilterScheme(name, [f for _, (_, f) in path])
+        fs = FilterPipe(name, [f for _, (_, f) in path])
         for prefix, (bamin, sam_hdr) in infiles.items():
             bamout = output_folder + os.sep + prefix + '_' + name + '.bam'
             fs.filter(bamin, bamout,sam_hdr)

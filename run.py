@@ -3,7 +3,7 @@ This script performs the preprocessing steps and starts a dedicated process for 
  """
 
 
-from collections import Counter
+from collections import Counter, OrderedDict
 import getpass
 import csv
 import re
@@ -28,17 +28,124 @@ if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
 from workers import *
 from analyzers import *
 from utils import *
-from singleend_filters import *
+from filters import *
 
 
 BEGIN = 0
 FASTQ = 1
-ALIGN = 2
-FILTR = 3
-SPLIT = 4
+BAM = 2
 
-STATES = ['BEGIN', 'FASTQ', 'ALIGN', 'FILTR', 'SPLIT']
-USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'ALIGN':ALIGN, 'FILTR':FILTR, 'SPLIT':SPLIT}
+STATES = ['BEGIN', 'FASTQ', 'BAM']
+USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'BAM':BAM}
+
+
+class FeatureCollection(OrderedDict):
+
+    def __init__(self):
+        super(FeatureCollection, self).__init__()
+
+    def add_feature(self, feat):
+        for f in self.values():
+            if f.short_name == feat.short_name: raise ValueError()
+            if f.name == feat.name: raise ValueError()
+        self[feat.name] = feat
+        if feat.short_name is None:
+            i = 1
+            short_names = set(f.short_name for f in self.values())
+            while i <= len(feat.name):
+                n = feat.name[:i].lower()
+                if n in short_names: continue
+                feat.short_name = n
+                break
+        if feat.short_name is None:
+            raise ValueError()
+
+
+class Feature(object):
+
+    def __init__(self, name, type, short_name=None, units=None):
+        self.name = name.lower()
+        self.short_name = short_name
+        self.strtype = type.lower()
+        self.type = str if type=='str' else int if type == 'int' else float
+        self.units = units
+        self.vals = set([])
+
+    def __str__(self):
+        return '%s(%s)[%s]:%s' % (self.name, self.short_name, self.units, self.strtype)
+
+    def __repr__(self): return str(self)
+
+
+class Sample(object):
+
+    def __init__(self):
+        self.fvals = OrderedDict()
+        self.barcode = None
+        self.files = {}
+
+    def base_name(self):
+        return '_'.join('%s-%s' % (f.short_name, str(v)) for f, v in self.fvals.items())
+
+    def __repr__(self):
+        return self.base_name()
+
+    def __hash__(self):
+        return hash(tuple(self.fvals.values()))
+
+
+# class SampleManager(object):
+#     # TODO: in future versions, all sample logic will be managed by this object, and the pipeline manager will just run these and perform certain tasks when all samples report at specific checkpoints.
+#     def __init__(self, sample, **kwargs):
+#         self.sample = sample
+#         self.__dict__.update(kwargs)
+#
+#     def collect_fastq(self):
+#         pass
+#
+#     def align(self):
+#         pass
+#
+#     def lactis_count(self):
+#         pass
+#
+#     def handle(self, start_from=BEGIN):
+#         if start_from <= BEGIN:
+#             self.wm.run(self.collect_fastq, self.comq)
+#             err, stat = self.comq.get() #blocking until done
+#             if err:
+#                 msg = "could not collect FASTQ files for sample %s:\n%s" % (self.short_name(), stat)
+#                 self.logq.put((lg.ERROR, msg))
+#                 return
+#             else:
+#                 self.stats.update(stat)
+#                 self.mainq.put((id(self), FASTQ))
+#                 msg = "FASTQ file ready (#reads: %i): %s" % (self.stats['#reads'], self.files['fastq'])
+#                 self.logq.put((lg.INFO, msg))
+#         if self.count_foreign:
+#             self.wm.run(self.count_foreign, self.comq)
+#             err, stat = self.comq.get()  # blocking until done
+#             if err:
+#                 msg = "Problem with foreign alignment counting in sample %s:\n%s" % (self.short_name(), stat)
+#                 self.logq.put((lg.ERROR, msg))
+#             else:
+#                 self.stats.update(stat)
+#                 self.mainq.put((id(self), FOREIGN))
+#                 msg = "FASTQ file ready (#reads: %i): %s" % (self.stats['#reads'], self.files['fastq'])
+#                 self.logq.put((lg.INFO, msg))
+#
+#         if start_from <= BAM:
+#             self.wm.run(self.align, self.comq)
+#             err, stat = self.comq.get()  # blocking until done
+#             if err:
+#                 msg = "could not collect FASTQ files for sample %s:\n%s" % (self.short_name(), stat)
+#                 self.logq.put((lg.ERROR, msg))
+#                 return
+#             else:
+#                 self.stats.update(stat)
+#                 self.mainq.put((id(self), FASTQ))
+#                 msg = "FASTQ file ready (#reads: %i): %s" % (self.stats['#reads'], self.files['fastq'])
+#                 self.logq.put((lg.INFO, msg))
 
 
 class MainHandler(object):
@@ -71,51 +178,41 @@ class MainHandler(object):
         self.__dict__.update(argobj.__dict__)
 
         self.setup_log()
+        self.logger.log(lg.INFO, 'commandline: %s' % cmdline)
         self.comq = mp.Queue()
         if self.debug:
             self.logger.log(lg.INFO, '=================== DEBUG MODE (%s) ===================' % self.debug)
         self.check_third_party()
 
-        msg = 'filters:\n' + '\n'.join(scheme.name+'\n'+str(scheme) for scheme in self.filters.values())
-        self.logger.log(lg.INFO, msg)
-
-        self.parse_barcode_file()
+        self.bc_len, self.samples, self.features = self.parse_sample_db()
         self.generate_dir_tree()
-        shutil.copy(self.barcode_file, self.output_dir + os.sep + 'barcodes')
-        self.files = {S: {s: {} for s in self.s2b.keys()}
-                      for S in USER_STATES.values()}
-
-        instantiated = {}
-        for a, acls in self.analyzers.items():
-            instantiated[a] = acls(self.tmp_dir)
-        self.analyzers = instantiated
-        msg = 'analyzers:\n' + '\n'.join(a for a in self.analyzers.keys())
-        self.logger.log(lg.INFO, msg)
-
+        shutil.copy(self.sample_db, self.output_dir + os.sep + 'sample_db')
+        self.stats = {s.base_name(): Counter() for s in self.samples.values()}
+        self.stat_order = []
+        self.fpipe = build_filter_schemes('filter:'+self.filter)['filter']
         self.w_manager = WorkManager(self.comq, self.exec_on=='slurm')
 
     def execute(self):
         if self.start_after <= BEGIN: self.make_fastq()
         if self.start_after <= FASTQ: self.make_bam()
-        if self.start_after <= ALIGN: self.filter()
-        if self.start_after <= FILTR: self.analyze()
+        if self.start_after <= BAM: self.track()
+        if self.start_after <= BAM: self.count()
         self.aftermath()
 
     def make_fastq(self):
         self.logger.log(lg.INFO, 'Re-compiling fastq files...')
-        fs = self.files[FASTQ]
         self.collect_input_fastqs()
         bcout = None
         if self.keep_nobarcode:
             bcout = self.fastq_dir + os.sep + NO_BC_NAME + '.fastq.gz'
         self.split_barcodes(no_bc=bcout)
         token_map = {}
-        for bc, sample in self.b2s.items():
-
-            fs[sample]['in1'] = self.tmp_dir + os.sep + sample + '-1'
-            fs[sample]['in2'] = self.tmp_dir + os.sep + sample + '-2'
-            fs[sample]['fastq'] = self.fastq_dir + os.sep + sample + '.fastq.gz'
-            args = dict(files=fs[sample], bc_len=self.bc_len, umi_len=self.umi_length)
+        for bc, sample in self.samples.items():
+            sf = sample.files
+            sf['in1'] = self.tmp_dir + os.sep + sample.base_name() + '-1'
+            sf['in2'] = self.tmp_dir + os.sep + sample.base_name()+ '-2'
+            sf['fastq'] = self.fastq_dir + os.sep + sample.base_name() + '.fastq.gz'
+            args = dict(files=sf, bc_len=self.bc_len, umi_len=self.umi_length)
             token_map[self.w_manager.run(format_fastq, kwargs=args)] = sample
         while token_map:
             tok, e, info = self.comq.get()
@@ -126,27 +223,30 @@ class MainHandler(object):
             else:
                 # in principal the next step could start now, but then recovery options make the code
                 # practically unreadable, and the performance benefit is very small
-                self.logger.log(lg.DEBUG, '%s ready.' % fs[sample]['fastq'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sf['fastq'])
         self.logger.log(lg.INFO, 'fastq files were written to: %s' % self.fastq_dir)
-        self.mark(FASTQ)
+        self.checkpoint(FASTQ)
 
     def make_bam(self):
         self.logger.log(lg.INFO, 'Aligning to genome...')
         token_map = {}
-        for bc, sample in self.b2s.items():
-            f = self.files[ALIGN][sample]
-            f['fastq'] = self.files[FASTQ][sample]['fastq']
-            f['bam'] = self.bam_dir + os.sep + sample + '.bam'
-            f['tmp_bam'] = self.tmp_dir + os.sep + sample + TMP_BAM_SUFF
-            f['sam_hdr'] = self.bam_dir + os.sep + sample + SAM_HDR_SUFF
-            f['align_stats'] = self.tmp_dir + os.sep + sample + BT_STATS_SUFF
+        for bc, sample in self.samples.items():
+            sf = sample.files
+            sf['bam'] = self.bam_dir + os.sep + sample.base_name() + '.bam'
+            sf['unfiltered_bam'] = self.bam_dir + os.sep + sample.base_name() + '.unfiltered.bam'
+            sf['bam_f'] = None
+            if self.keep_filtered:
+                sf['bam_f'] = self.filtered_dir + os.sep + sample.base_name() + '.bam'
+            sf['tmp_bam'] = self.tmp_dir + os.sep + sample.base_name() + TMP_BAM_SUFF
+            sf['sam_hdr'] = self.bam_dir + os.sep + sample.base_name() + SAM_HDR_SUFF
+            sf['align_stats'] = self.tmp_dir + os.sep + sample.base_name() + BT_STATS_SUFF
             if self.klac_index_path is not None:
-                f['klac_align_stats'] = self.tmp_dir + os.sep + sample + '.klac' + BT_STATS_SUFF
+                sf['klac_align_stats'] = self.tmp_dir + os.sep + sample.base_name() + '.klac' + BT_STATS_SUFF
             if self.keep_unaligned:
-                f['unaligned_bam'] = self.unaligned_dir + os.sep + sample + '.bam'
-            args = dict(files=self.files[ALIGN][sample], bowtie_exec=self.bowtie_exec,
+                sf['unaligned_bam'] = self.unaligned_dir + os.sep + sample.base_name() + '.bam'
+            args = dict(files=sf, bowtie_exec=self.bowtie_exec, fpipe=self.fpipe,
                         n_threads=self.n_threads, scer=self.scer_index_path, klac=self.klac_index_path)
-            token_map[self.w_manager.run(align, kwargs=args)] = sample
+            token_map[self.w_manager.run(make_bam, kwargs=args)] = sample
 
         while token_map:
             tok, e, info = self.comq.get()
@@ -157,7 +257,7 @@ class MainHandler(object):
             else:
                 # in principal the next step could start now, but then recovery options make the code
                 # practically unreadable, and the performance benefit is very small
-                self.logger.log(lg.DEBUG, '%s ready.' % self.files[ALIGN][sample]['bam'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sf['bam'])
 
         for f in os.listdir(self.tmp_dir):
             if not f.endswith(BT_STATS_SUFF): continue
@@ -171,63 +271,71 @@ class MainHandler(object):
                     if stat not in self.stat_order: self.stat_order.append(stat)
                     self.stats[sample][stat] += int(cnt)
             os.remove(fpath)
-        self.mark(ALIGN)
+        self.checkpoint(BAM)
 
-    def filter(self):
-        self.logger.log(lg.INFO, 'Filtering the reads...')
+    def track(self):
+        # TODO: this will be replaced by a proper analysis tool, for now it's just here to support current functionality
+        self.logger.log(lg.INFO, 'Making tracks...')
         token_map = {}
-        for bc, sample in self.b2s.items():
-            for f, fscheme in self.filters.items():
-                files = self.files[FILTR][sample][f] = {}
-                files['bam_in'] = self.files[ALIGN][sample]['bam']
-                files['sam_hdr'] = self.files[ALIGN][sample]['sam_hdr']
-                files['bam_out'] = os.sep.join([self.output_dir, f, self.bam_dirname, sample + '.bam'])
-                args = dict(files=files, fscheme=fscheme)
-                token_map[self.w_manager.run(filter_bam, kwargs=args)] = (sample, f)
+        for bc, sample in self.samples.items():
+            sf = sample.files
+            sf['cbw'] = self.bw_dir + os.sep + sample.base_name() + '.c.bw'
+            sf['wbw'] = self.bw_dir + os.sep + sample.base_name() + '.w.bw'
+            sf['tmp_bed'] = self.tmp_dir + os.sep + sample.base_name() + '.tmp.bed'
+            token_map[self.w_manager.run(make_tracks, kwargs=dict(files=sf))] = sample
 
         while token_map:
             tok, e, info = self.comq.get()
-            sample, filter = token_map.pop(tok)
+            sample = token_map.pop(tok)
             if e is not None:
-                msg = 'error while filtering sample %s with filter %s:\n%s' % (sample, filter, e)
+                msg = 'error in making tracks for sample %s:\n%s' % (sample, e)
                 self.logger.log(lg.CRITICAL, msg)
             else:
                 # in principal the next step could start now, but then recovery options make the code
                 # practically unreadable, and the performance benefit is very small
-                stat = 'passed:%s' % f
-                if stat not in self.stat_order: self.stat_order.append(stat)
-                self.stats[sample][stat] += info
-                self.logger.log(lg.DEBUG, 'filtered %s with %s (%i passed).' % (sample, f, info))
+                self.logger.log(lg.DEBUG, '%s ready.' % sf['cbw'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sf['wbw'])
 
-        self.mark(FILTR)
-
-    def analyze(self):
-        self.logger.log(lg.INFO, 'Analyzing the data...')
+    def count(self):
+        pass
+        # TODO: this will be replaced by a proper analysis tool, for now it's just here to support current functionality
+        self.logger.log(lg.INFO, 'Counting reads...')
         token_map = {}
-        for bc, sample in self.b2s.items():
-            for f, fscheme in self.filters.items():
-                for aname, analyzer in self.analyzers.items():
-                    files = self.files[FILTR][sample][f][aname] = {}
-                    files['bam_in'] = self.files[FILTR][sample][f]['bam_out']
-                    for s in analyzer.suffixes.keys():
-                        files[s] = os.sep.join([self.output_dir, analyzer.out_folder, sample + '_' + f + s])
-                    args = dict(files=files, analyzer=analyzer)
-                    token_map[self.w_manager.run(analyze_bam, kwargs=args)] = (sample, f, aname)
+        for bc, sample in self.samples.items():
+            sf = sample.files
+            sf['tmp_cnt'] = self.tmp_dir + os.sep + sample.base_name() + '.tmp.cnt'
+            args = dict(annot_file=self.tts_file, window=self.count_window, files=sf)
+            token_map[self.w_manager.run(count, kwargs=args)] = sample
+
+        cnt_dict = {}
         while token_map:
             tok, e, info = self.comq.get()
-            sample, filter, analyzer = token_map.pop(tok)
+            sample = token_map.pop(tok)
             if e is not None:
-                msg = 'error while analyzing (%s, %s) with %s analysis:\n %s' % (sample, filter, analyzer, e)
+                msg = 'error in counting sample %s:\n%s' % (sample, e)
                 self.logger.log(lg.CRITICAL, msg)
             else:
-                # in principal the next step could start now, but then recovery options make the code
-                # practically unreadable, and the performance benefit is very small
-                if info:
-                    for s, cnt in info.items():
-                        stat = '%s:%s' % (filter, s)
-                        if stat not in self.stat_order: self.stat_order.append(stat)
-                        self.stats[sample][stat] += info
-                self.logger.log(lg.DEBUG, 'analyzed (%s, %s) with %s.' % (sample, f, analyzer))
+                cnt_dict[sample] = info
+                # for line in f:
+                #     sline = line.split('\t')
+                #     acc = sline[3].strip()
+                #     if acc not in cnt_dict: cnt_dict[acc] = {}
+                #     cnt_dict[acc][sample] = sline[6].strip()
+                # f.close()
+                # os.remove(sample.files['tmp_cnt'])
+                self.logger.log(lg.DEBUG, 'Collected counts for sample %s' % sample)
+
+        #now collect all counts to a single file...
+        cnts_name = self.output_dir + os.sep + self.counts_file
+        fout = open(cnts_name, 'w')
+        # header:
+        for f in self.features.values():
+            fout.write(str(f)+'\t'+'\t'.join(str(s.fvals[f]) for s in self.samples.values())+'\n')
+        #counts
+        for acc in info.keys():
+            fout.write(acc+'\t'+'\t'.join(cnt_dict[s][acc] for s in self.samples.values())+'\n')
+        fout.close()
+        self.logger.log(lg.CRITICAL, 'Collected all counts into %s' % cnts_name)
 
     def print_stats(self):
         stats = set([])
@@ -239,7 +347,7 @@ class MainHandler(object):
             wrtr.writerow(dict(sample=s, **{k:str(st[k]) for k in fns[1:]}))
         fh.close()
 
-    def mark(self, stage):
+    def checkpoint(self, stage):
         self.print_stats()
         stage = STATES[stage]
         msg = ('Finished stage %s. You can continue the pipeline from this point '
@@ -258,9 +366,6 @@ class MainHandler(object):
 
     def copy_log(self):
         shutil.copy(self.logfile, self.output_dir + os.sep + 'full.log')
-
-    def prepare_outputs(self):
-        pass
 
     def check_third_party(self):
         if self.exec_on == 'slurm':
@@ -281,52 +386,99 @@ class MainHandler(object):
                 self.logger.log(lg.CRITICAL, "could not resolve %s path: %s" % (ex, self[ex]))
                 raise e
 
-    def parse_barcode_file(self):
-        with open(self.barcode_file) as BCF:
-            exp = re.match('.*experiment.*:\s+(\w+)', BCF.readline())
-            if exp is None:
-                msg = 'barcodes file should contain a header with experiment name: ' \
-                      'experiment: <expname>'
-                self.logger.log(lg.CRITICAL, msg)
-                raise ValueError(msg)
-            self.user = getpass.getuser()
-            self.exp = exp.group(1)
-            msg = 'user: %s, experiment: %s' % (self.user, self.exp)
-            self.logger.log(lg.INFO, msg)
-            b2s, s2b = {}, {}
-            bl = None
-            for i, line in enumerate(BCF):
+    def parse_sample_db(self):
+
+        def parse_features(hdr):
+            feat_pat = re.compile('\s*(?P<name>\w+)\s*(?:\((?P<short_name>\w+)\))?'
+                                  '\s*:(?P<type>\w+)(:?\[(?P<units>\w+)\])?')
+            hdr = hdr.split(DELIM)
+            features = FeatureCollection()
+            f_pos_map = {}
+            for i, f in enumerate(hdr):
+                if i == 0:
+                    assert hdr[0] == 'barcode', 'first column in sample db needs to be the "barcode" column'
+                elif f.startswith('#'):
+                    msg = ("ignoring column %s in sample db" % f)
+                    self.logger.log(lg.INFO, msg)
+                else:
+                    m = re.match(feat_pat, f)
+                    if m is None:
+                        msg = ("couldn't understand feature '%s' in sample_db file, format should be: "
+                               "<name>(<short_name>):(str|int|float)[units] (short_name and units are optional) or "
+                               "column is ignored if it starts with '#'" % f)
+                        self.logger.log(lg.CRITICAL, msg)
+                        raise (ValueError(msg))
+                    try:
+                        f_pos_map[i] = Feature(**m.groupdict())
+                    except ValueError:
+                        snames = '\n'.join(f.short_name for f in features.values)
+                        msg = ("features must have distinct names and short_names - %s appears at least twice (or "
+                               "its short_name matched a previous generated short name):\n%s" % f, snames)
+                        self.logger.log(lg.CRITICAL, msg)
+                        raise (ValueError(msg))
+                    features.add_feature(f_pos_map [i])
+            return features, f_pos_map
+
+        def parse_samples(file, f_pos_map):
+            b2s, bc_len = OrderedDict(), None
+            for i, line in enumerate(file):
+                if line.strip()[0] == '#': continue  # comment
                 if self.debug is not None:
-                    if i >= self.db_nsamples: break #limit number of samples
-                b, s = line.strip().split(',')
-                if b in b2s:
-                    msg = 'barcode %s is not unique.' % b
-                    self.log(msg, lg.CRITICAL)
-                    raise(ValueError(msg))
-                if s in s2b:
-                    msg = 'sample %s is not unique.' % s
-                    self.log(msg, lg.CRITICAL)
-                    raise (ValueError(msg))
-                if bl is None: bl = len(b)
-                elif bl != len(b):
-                    msg = 'barcode %s does not conform to barcode length %i.' % (b, bl)
-                    self.log(msg, lg.CRITICAL)
-                    raise (ValueError(msg))
-                b2s[b] = s
-                s2b[s] = b
+                    if i >= self.db_nsamples: break  # limit number of samples
+                sample = Sample()
+                for j, val in enumerate(line.strip().split(DELIM)):
+                    val = val.strip()
+                    if j == 0:
+                        if i == 0:
+                            bc_len = len(val)  # first barcode
+                        elif bc_len != len(val):
+                            msg = "barcode %s has a different length" % val
+                            self.logger.log(lg.CRITICAL, msg)
+                            raise (TypeError(msg))
+                        if val in b2s:
+                            msg = "barcode %s is not unique" % val
+                            self.logger.log(lg.CRITICAL, msg)
+                            raise (TypeError(msg))
+                        sample.barcode = val
+                    elif j in f_pos_map:
+                        f = f_pos_map[j]
+                        try:
+                            v = f.type(val)
+                        except ValueError:
+                            msg = ("couldn't cast value %s in sample %i, feature '%s' to "
+                                   "given type - %s." % (val, i + 1, f.name, f.strtype))
+                            self.logger.log(lg.CRITICAL, msg)
+                            raise (ValueError(msg))
+                        f.vals.add(v)
+                        sample.fvals[f] = v
+                    if hash(sample) in [hash(s) for s in b2s.values()]:
+                        msg = "2 samples (or more) seem to be identical - %s" % sample
+                        self.logger.log(lg.CRITICAL, msg)
+                        raise (TypeError(msg))
+                b2s[sample.barcode] = sample
+            return b2s, bc_len
 
-            msg = '\n'.join(['barcodes:'] + ['%s -> %s' % bs for bs in b2s.items()])
-            self.logger.log(lg.DEBUG, msg)
-            self.logger.log(lg.INFO, 'found %i samples.' % len(b2s))
+        sdb = open(self.sample_db)
+        exp = re.match('.*experiment.*:\s+(\w+)', sdb.readline())
+        if exp is None:
+            msg = 'barcodes file should contain a header with experiment name: ' \
+                  'experiment: <expname>'
+            self.logger.log(lg.CRITICAL, msg)
+            raise ValueError(msg)
+        self.user = getpass.getuser()
+        self.exp = exp.group(1)
+        msg = 'user: %s, experiment: %s' % (self.user, self.exp)
+        self.logger.log(lg.INFO, msg)
+        features, f_pos_map = parse_features(sdb.readline())
+        b2s, bc_len = parse_samples(sdb, f_pos_map)
+        sdb.close()
+        msg = '\n'.join(['barcodes:'] + ['%s -> %s' % (b, s.base_name()) for b, s in b2s.items()])
+        self.logger.log(lg.DEBUG, msg)
+        self.logger.log(lg.INFO, 'found %i samples.' % len(b2s))
+        msg = 'features:\n' + '\n'.join('%s: %s' % (str(f), ','.join(str(x) for x in f.vals)) for f in features.values())
+        self.logger.log(lg.DEBUG, msg)
 
-        self.b2s = b2s
-        self.s2b = s2b
-        self.bc_len = len(list(b2s)[0])
-        self.stats = {s: Counter() for s in s2b.keys()}
-        self.stat_order = []
-
-    def write_barcode_file(self):
-        shutil.copy(self.barcode_file, self.output_dir + os.sep + 'barcodes')
+        return bc_len, b2s, features
 
     def collect_input_fastqs(self):
         files = {}
@@ -392,7 +544,10 @@ class MainHandler(object):
         d = self.output_dir
         self.tmp_dir = d + os.sep + TMP_NAME
         self.fastq_dir = d + os.sep + self.fastq_dirname
+        self.bw_dir = d + os.sep + self.bigwig_dirname
         self.bam_dir = d + os.sep + self.bam_dirname
+        if self.keep_filtered:
+            self.filtered_dir = d + os.sep + FILTERED_NAME
         if os.path.isdir(self.tmp_dir): shutil.rmtree(self.tmp_dir)
 
         if self.start_after == BEGIN:
@@ -400,20 +555,12 @@ class MainHandler(object):
             self.create_dir_and_log(d, lg.INFO)
             self.create_dir_and_log(self.fastq_dir)
             self.create_dir_and_log(self.bam_dir)
+            self.create_dir_and_log(self.bw_dir)
             self.create_dir_and_log(self.tmp_dir)
+            self.create_dir_and_log(self.filtered_dir)
             if self.keep_unaligned:
                 self.unaligned_dir = d + os.sep + UNALIGNED_NAME
                 self.create_dir_and_log(self.unaligned_dir)
-
-        if self.start_after <= ALIGN:
-            for f, scheme in self.filters.items():
-                create_dir(os.sep.join([self.output_dir, f]))
-                filter_folder = os.sep.join([self.output_dir, f, self.bam_dirname])
-                create_dir(filter_folder)
-                scheme.folder = filter_folder
-
-        for a, acls in self.analyzers.items():
-            create_dir(os.sep.join([self.output_dir, acls.out_folder]))
 
     def split_barcodes(self, no_bc=None):
         #
@@ -454,17 +601,17 @@ class MainHandler(object):
                     sample, cnt = line.strip().split(' ')
                     self.stats[sample[:-2]][stat] += int(cnt)
             os.remove(bc2)
-            for s in self.s2b.keys():
-                if s not in self.stats:
-                    self.stats[s][stat] += 0
+            for s in self.samples.values():
+                if s.base_name() not in self.stats:
+                    self.stats[s.base_name()][stat] += 0
             msg = '\n'.join(['%s: %i' % (s, c['#reads']) for s, c in self.stats.items()])
             self.logger.log(lg.CRITICAL, 'read counts:\n' + msg)
 
         hb = {}
-        for b,s in self.b2s.items():
-            hb.update({eb:s for eb in hamming_ball(b, self.hamming_distance)})
+        for b,s in self.samples.items():
+            hb.update({eb:s.base_name() for eb in hamming_ball(b, self.hamming_distance)})
 
-        awk1p, cnt1 = compile_awk("1", self.b2s)
+        awk1p, cnt1 = compile_awk("1", {b: s.base_name() for b,s in self.samples.items()})
         awk2p, cnt2 = compile_awk("2", hb)
         outf = open(os.devnull, 'w') if no_bc is None else open(no_bc, 'wb')
         for r1, r2 in self.input_files:
@@ -487,11 +634,13 @@ class MainHandler(object):
 
     def aftermath(self):
         # remove temp folder
+        # modify file permissions for the entire tree
         # make everything read only (optional?)
         # store pipeline code?
         # merge and report statistics
         # merge data to single (usable) files
-
+        if self.debug is None:
+            shutil.rmtree(self.tmp_dir)
         self.logger.log(lg.CRITICAL, 'All done.')
         self.copy_log()
 
@@ -523,8 +672,9 @@ def build_parser():
     g.add_argument('--fastq_dirname', '-fd', default='FASTQ', type=str,
                    help='name of folder in which fastq files are written. relative to output_dir')
     g.add_argument('--bam_dirname', '-bd', default='BAM', type=str,
-                   help='name of folder in which bam files are written relative to output_dir'
-                        '(or each filter folder)')
+                   help='name of folder in which bam files are written relative to output_dir')
+    g.add_argument('--bigwig_dirname', '-bwd', default='BIGWIG', type=str,
+                   help='name of folder in which bigwig files are written relative to output_dir')
     g.add_argument('--user_emails', '-ue', default=None, type=str,
                    help="if provided these comma separated emails will receive notifications of ctitical "
                         "events (checkpoints, fatal errors, etc.)")
@@ -536,11 +686,12 @@ def build_parser():
                         'a "debug" folder.')
 
     g = p.add_argument_group('Barcode Splitting')
-    g.add_argument('--barcode_file', '-bf', type=str, default=None,
-                   help='a file with 2 header lines:'
-                        '\nname: <name> \n experiment: <expname>\n followed by any number '
-                        'of lines specifying the barcodes and samples: <bc1>,<sample1>\n<bc2>,<sample2>...\n'
-                        'default is "barcodes" in given fastq path')
+    g.add_argument('--sample_db', '-sd', type=str, default=None,
+                   help='a file with an experiment name in first row \n experiment: <expname>\nfollowed by a'
+                        ' header whose first column is "barcode", and the remaining entries are the features'
+                        'present in the experiment: <name>:(str|int|float)[units], with the units being optional.'
+                        'The remaining line define the experiment samples according to the header. Default is '
+                        '"sample_db.csv" in the folder of the --fastq_prefix input')
     g.add_argument('--umi_length', '-ul', type=int, default=8,
                    help='UMI length')
     g.add_argument('--hamming_distance', '-hd', default=1, type=int,
@@ -550,63 +701,47 @@ def build_parser():
                    help='keep fastq entries that did not match any barcode')
 
     g = p.add_argument_group('Alignment')
-    g.add_argument('--scer_index_path', '--sip', type=str, default='/cs/wetlab/genomics/bowtie_index/scer/sacCer3',
+    g.add_argument('--scer_index_path', '--sip', type=str, default='/cs/wetlab/genomics/scer/bowtie/sacCer3',
                    help='path prefix of s. cervisae genome bowtie index')
     g.add_argument('--klac_index_path', '-kip', type=str, default=None,
                    help='If given, data is also aligned to k. lacis genome (can be found in '
-                        '/cs/wetlab/genomics/bowtie_index/klac/)')
+                        '/cs/wetlab/genomics/klac/bowtie/genome)')
     g.add_argument('--n_threads', '-an', type=int, default=4,
                    help='number of threads used for alignment per bowtie instance')
     g.add_argument('--keep_unaligned', '-ku', action='store_true',
                    help='if set, unaligned reads are written to '
                         'output_folder/%s/<sample_name>.bam' % UNALIGNED_NAME)
 
-    g = p.add_argument_group('Filters and Splitters',
+    g = p.add_argument_group('Filter',
                              description='different filters applied to base BAM file. Each filter result is '
                                          'processeed downstream and reported separately')
-    g.add_argument('--filters', '-F', action='store',
-                   default='unique:dup(),qual(qmin=5)+',
-                   help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
-                        '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
-                        'resulting outputs from this branch of the data. use "run -fh" for more info.')
+    g.add_argument('--filter', '-F', action='store',
+                   default='dup(),qual()',
+                   help='specify a filter scheme to apply to data. Expected string conforms to:\n' \
+                        '[<filter_name>([<argname1=argval1>,]+)[+|-]);]*\n. use "run -fh" for more info.')
+    g.add_argument('--keep_filtered', '--kf', action='store_true',
+                   help='if set, filtered reads are written to '
+                        'output_folder/%s/<sample_name>.bam' % FILTERED_NAME)
     g.add_argument('--filter_specs', '-fh', action='store_true',
                    default='print available filter specs and filter help and exit')
-
-    g = p.add_argument_group('Filters',
-                             description='different filters applied to base BAM file. Each filter result is '
-                                         'processeed downstream and reported separately')
-    g.add_argument('--split', '-S', action='store',
-                   default='[pA, [+:polyA()+, -:polyA()-)]],[str, [w:strand()+,c:strand()-]]',
-                   help='specify filter schemes to apply to data. Expected string conforms to ([] are for grouping):\n' \
-                        '[<filter_scheme>:<filter>([<argname1=argval1>,]+)[+|-]);]*\n the filter_scheme will be used to name all '
-                        'resulting outputs from this branch of the data. use "run -fh" for more info.')
-
-    g = p.add_argument_group('Analyses',
-                             description='different analyses applied to filtered BAM files. Each analysis is '
-                                         'performed on single samples, and when all is done, results are merged '
-                                         'to a single file in the output/path/results folder')
-    g.add_argument('--analyses', '-A', action='store', default='3pT,covT',
-                   help='specify analyses to apply to data. a comma separated list (see run -ah" for more info).')
-    g.add_argument('--analysis_specs', '-ah', action='store_true',
-               default='print available analyses specs and analysis help and exit')
 
     g = p.add_argument_group('Execution and third party')
     g.add_argument('--exec_on', '-eo', choices=['slurm', 'local'], default='slurm',
                    help='whether to to submit tasks to a slurm cluster (default), or just use the local processors')
     g.add_argument('--bowtie_exec', '-bx', type=str, default=BOWTIE_EXEC,
-                   help='full path to bowtie executable'),
+                   help='full path to bowtie executable')
     g.add_argument('--samtools_exec', '-sx', type=str, default=SAMTOOLS_EXEC,
-                   help='full path to samtools executable'),
-    g.add_argument('--bed2wig_exec', '-b2wx', type=str, default=BG2W_EXEC,
-                   help='full path to badGraphToBigWig executable'),
-    g.add_argument('--gencov_exec', '-gcx', type=str, default=GC_EXEC,
-                   help='full path to genomeCoverageBed executable'),
+                   help='full path to samtools executable')
 
-    g = p.add_argument_group('polyA')
-    g.add_argument('--polyA', '-pa', action='store_false',
-                   help='set to avoid polyA reads special treatment'),
-    g.add_argument('--polyA_threshold', '-pt', type=int, default=4,
-                   help='any read with more than this number of As at its *unaligned* end is considered a polyA read')
+    g = p.add_argument_group('Count')
+    g.add_argument('--tts_file', '-tf', default=TTS_MAP,
+                   help='annotations for counting. Expected format is a tab delimited file with "chr", "ACC", "start",'
+                        '"end", and "TTS" columns.')
+    g.add_argument('--count_window', '-cw', default='-100,500',
+                   help='Comma separated limits for tts counting, relative to annotation TTS.')
+    g.add_argument('--counts_file', '-cf', default='counts.tab',
+                   help='tab delimited file with a row per annotation and a column per sample, first'
+                        'rows are sample variable values, for easy indexing into the columns')
     return p
 
 
@@ -633,8 +768,8 @@ def parse_args(p):
     args.__dict__['fastq_pref'] = s
     args.__dict__['fastq_prefix'] = canonic_path(args.fastq_prefix)
     p, s = os.path.split(args.fastq_prefix)
-    if args.barcode_file is None:
-        args.__dict__['barcode_file'] = os.sep.join([args.fastq_path, 'barcodes'])
+    if args.sample_db is None:
+        args.__dict__['sample_db'] = os.sep.join([args.fastq_path, 'sample_db.csv'])
 
     if args.debug is not None:
         nlines, nsamples = args.debug.split(',')
@@ -644,21 +779,12 @@ def parse_args(p):
     if args.output_dir is not None:
         args.__dict__['output_dir'] = canonic_path(args.__dict__['output_dir'])
 
-    args.__dict__['filters'] = build_filter_schemes(args.filters)
-
-    analyzers, sel_a = collect_analyzers(), {}
-    for a in args.analyses.split(','):
-        if a not in analyzers:
-            print("could not resolve analyzer '%s', use run -ah for more details" % a)
-            exit()
-        else: sel_a[a] = analyzers[a]  # still need to instantiate them
-    args.__dict__['analyzers'] = sel_a
-
+    args.__dict__['count_window'] = [int(x) for x in args.count_window.split(',')]
     return args
 
 
 if __name__ == '__main__':
     p = build_parser()
     a = parse_args(p)
-    mh = MainHandler(a, ' '.join(sys.argv))
+    mh = MainHandler(a, ' '.join(sys.argv)) #also print git current version from ./.git/log/HEAD,last row, 2nd column
     mh.execute()

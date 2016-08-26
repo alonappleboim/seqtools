@@ -1,5 +1,6 @@
 
 import os
+import copy
 import subprocess as sp
 from abc import ABCMeta, abstractmethod
 import shlex as sh
@@ -19,7 +20,7 @@ def collect_filters():
     return filters
 
 
-class FilterScheme(object):
+class FilterPipe(object):
     """
     Collects the "And" result of multiple filters
     """
@@ -29,15 +30,21 @@ class FilterScheme(object):
         self.filters = filters
         self.name = name
 
-    def filter(self, bamin, bamout, sam_hdr):
+    def filter(self, samin, bamout, sam_hdr, bamnfilter=None):
         """
         :param bamin: input bam path
         :param bamout: output bam path
         :param sam_hdr: header associated with bam input
+        :param bamnfilter: if given, filtered reads are written to this file
         :return: the number of alignments that passed the filter scheme
         """
-        fin = sp.Popen(sh.split('samtools view'), stdout=sp.PIPE, stdin=open(bamin, 'rb')).stdout
-        for f in self.filters:
+        fin = sp.Popen(sh.split('samtools view'), stdout=sp.PIPE, stdin=open(samin, 'rb')).stdout
+        tmp_files = []
+        for i, f in enumerate(self.filters):
+            if bamnfilter is not None:  # split output and pass (also) to negated filter
+                tmprep = bamnfilter + '.tmp.' + str(i)
+                tmp_files.append(tmprep)
+                fin = sp.Popen(['tee', tmprep], stdin=fin, stdout=sp.PIPE).stdout
             fout = f.filter(fin)
             fin = fout
         addh = sp.Popen(sh.split('cat %s -' % sam_hdr), stdin=fin, stdout=sp.PIPE)
@@ -46,6 +53,18 @@ class FilterScheme(object):
         final.wait()
         index = sp.Popen(sh.split('samtools index %s' % bamout))
         index.wait()
+        # TODO: collect duplicate count distribution
+        if bamnfilter is not None: #TODO: collect filtration statistics
+            with open(bamnfilter+ '.tmp', 'wb') as fout: #TODO: write each filtered stream to designated folder
+                for i, (f, tmpf) in enumerate(zip(self.filters, tmp_files)):
+                    nf = copy.copy(f)
+                    nf.negate = ~nf.negate
+                    fout.write(nf.filter(open(tmpf)).read())
+                    os.remove(tmpf)
+            addh = sp.Popen(['cat', sam_hdr, bamnfilter + '.tmp'], stdout=sp.PIPE)
+            sp.Popen(sh.split('samtools view -b'), stdout=open(bamnfilter, 'wb'), stdin=addh.stdout).wait()
+            os.remove(bamnfilter + '.tmp')
+
         cnt = sp.Popen(sh.split("samtools idxstats %s" % bamout), stdout=sp.PIPE)
         out = ''.join(cnt.communicate()[0].decode('utf-8'))
         n = 0
@@ -69,7 +88,7 @@ class SAMFilter(object):
         self.__dict__.update(kwargs)
 
     @abstractmethod
-    def filter(self, fin):
+    def filter(self, fin, filtered=None):
         """
         filter the data in fin into fout. Input can be assumed to be sorted by genomic position, and output should
         remain sorted similarly.
@@ -182,7 +201,7 @@ def scheme_from_parse_tree(name, ptree):
         for a, props in F.args.items():
             if a not in args: args[a] = props[1]  # default
         fs.append(F(negate=attr['neg'] == '-', **args))
-    return FilterScheme(name, fs)
+    return FilterPipe(name, fs)
 
 
 def build_filter_schemes(filter_scheme_string):
@@ -204,21 +223,23 @@ def parse_filterscheme_list(fstr):
         """
     ptree = {}
     for fs in fstr.split(';'):
-        [name, pt] = parse_filterscheme_string(fs.strip())
+        name, rest = fs.strip().split(':')
+        pt = parse_filterscheme_string(rest.strip())
         ptree[name] = pt
     return ptree
 
 
-def parse_filterscheme_string(fstr):
-    name, rest = fstr.strip().split(':')
+def parse_filterscheme_string(rest):
     ptree = {}
     while True:
         if '(' not in rest: break
         fname, rest = rest.split('(', 1)
         ptree[fname.strip()] = {}
         argstr, rest = rest.split(')', 1)
-        if ',' not in rest: neg = rest
-        else: neg, rest = rest.split(',', 1)
+        if ',' not in rest:
+            neg = rest
+        else:
+            neg, rest = rest.split(',', 1)
         ptree[fname]['neg'] = neg.strip()
         args = {}
         for arg in argstr.strip().split(','):
@@ -226,7 +247,7 @@ def parse_filterscheme_string(fstr):
                 (aname, aval) = arg.split('=')
                 args[aname.strip()] = aval.strip()
         ptree[fname]['args'] = args
-    return name, ptree
+    return ptree
 
 
 if __name__ == '__main__':

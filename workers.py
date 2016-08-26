@@ -1,4 +1,4 @@
-import time
+from collections import OrderedDict
 import os
 import subprocess as sp
 import multiprocessing as mp
@@ -7,7 +7,9 @@ import re
 import threading
 import traceback
 
+from utils import buff_lines
 from config import *
+from config import SCER_GENOME_LENGTH_PATH as SGLP
 
 MAX_TRIALS = 3
 
@@ -38,16 +40,11 @@ class WorkManager(object):
 
     @staticmethod
     def exec_wrapper(f, kwargs, comq, token):
-        for _ in range(RETRIALS):
-            try:
-                e = None
-                info = f(**kwargs)
-                break  # ok!
-            except Exception:
-                time.sleep(RETRY_INTERVAL)
-                e = traceback.format_exc(10)
-        if e is not None: comq.put((token, e, None))
-        else: comq.put((token, None, info))
+        try:
+            info = f(**kwargs)
+            comq.put((token, None, info))
+        except Exception:
+            comq.put((token, traceback.format_exc(10), None))
 
 
 def format_fastq(files, bc_len, umi_len):
@@ -69,7 +66,7 @@ def format_fastq(files, bc_len, umi_len):
     return None
 
 
-def align(files, bowtie_exec, n_threads, scer, klac):
+def make_bam(files, bowtie_exec, n_threads, scer, klac, fpipe):
 
     def parse_bowtie_stats(bt_stats):
         # parse this output:
@@ -101,10 +98,7 @@ def align(files, bowtie_exec, n_threads, scer, klac):
                       stderr=sp.PIPE, stdout=open(os.devnull, 'w'))
         Ns = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
         with open(klacstats, 'w') as S:
-            S.write('\n'.join(['total\t%s' % Ns[0],
-                               'no-align\t%s' % Ns[1],
-                               'unique-align\t%s' % Ns[2],
-                               'multiple-align\t%s' % Ns[3]]))
+            S.write('unique-align\t%s' % Ns[2])
 
     if klac is not None:
         ct = threading.Thread(target=klac_count)
@@ -121,11 +115,9 @@ def align(files, bowtie_exec, n_threads, scer, klac):
         naligned = sp.Popen(sh.split(cmd), stdout=sp.PIPE)
         naligned.wait()
     aligned = sp.Popen(sh.split('samtools view -F4 -b %s' % files['tmp_bam']), stdout=sp.PIPE)
-    sort = sp.Popen(sh.split('samtools sort -o %s -T %s' % (files['bam'], files['tmp_bam'])),
+    sort = sp.Popen(sh.split('samtools sort -o %s -T %s' % (files['unfiltered_bam'], files['tmp_bam'])),
                     stdin=aligned.stdout)
     sort.wait()
-    ind = sp.Popen(sh.split('samtools index %s' % files['bam']))
-    ind.wait()
     os.remove(files['tmp_bam'])
     Ns = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
     with open(files['align_stats'], 'w') as S:
@@ -135,12 +127,46 @@ def align(files, bowtie_exec, n_threads, scer, klac):
                            'multiple-align\t%s' % Ns[3]]))
     if klac is not None:
         ct.join()  # making sure lactis alignment is also complete
+    fpipe.filter(files['unfiltered_bam'], files['bam'], files['sam_hdr'], files['bam_f'])
+    os.remove(files['unfiltered_bam'])
     return None
 
 
-def filter_bam(files, fscheme):
-    return fscheme.filter(files['bam_in'], files['bam_out'], files['sam_hdr'])
+def make_tracks(files):
+
+    def handle_strand(char, fout, negate=False):
+        bedcmd = "bedtools genomecov -ibam %s -g %s -bg -strand %s"
+        bed = sp.Popen(sh.split(bedcmd % (files['bam'], SGLP, STRANDS[char])), stdout=sp.PIPE)
+        if negate:
+            bed = sp.Popen(['awk', '{print $1,$2,$3,"-"$4;}'], stdin=bed.stdout, stdout=sp.PIPE)
+        sbed = sp.Popen(sh.split("sort -k1,1 -k2,2n"), stdin=bed.stdout, stdout=open(files['tmp_bed'], 'w'))
+        sbed.wait()
+        bw = sp.Popen([BG2W_EXEC, files['tmp_bed'], SGLP, fout])
+        bw.wait()
+        os.remove(files['tmp_bed'])
+
+    handle_strand('w', files['wbw'])
+    handle_strand('c', files['cbw'], True)
+    return {}
 
 
-def analyze_bam(files, analyzer):
-    return analyzer.analyze(files)
+def count(annot_file, window, files):
+    # annotation format:
+    # ACC   chr   start end TTS
+    awkcmd = ''.join(["""{ if ($5 != "NaN") { """,
+                      """if ($3 < $4) {print $2"\\t"$5-%i"\\t"$5+%i"\\t"$1"\\t""1\\t+";}""" % (window[1],abs(window[0])),
+                      """else {print $2"\\t"$5+%i"\\t"$5+%i"\\t"$1"\\t""1\\t-";}}}""" % (window[0], window[1])])
+    awk = sp.Popen(['awk',awkcmd], stdin=open(annot_file), stdout=sp.PIPE)
+    cnt = sp.Popen(sh.split('bedtools coverage -counts -a stdin -b %s' % files['bam']),
+                   stdin=awk.stdout, stdout=sp.PIPE) #stdout=open(files['tmp_cnt'],'wb'))
+
+    cnt_dict = OrderedDict()
+    with open(annot_file) as ttsf:
+        for line in ttsf: cnt_dict[line.split('\t')[0]] = '0'
+
+    for line in ''.join(cnt.stdout.read().decode('utf-8')).split('\n'):
+        if not line: continue
+        sline = line.split('\t')
+        cnt_dict[sline[3].strip()] = sline[6].strip()
+    return cnt_dict
+
