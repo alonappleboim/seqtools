@@ -3,7 +3,7 @@ import sys
 import numpy as np
 from scipy import io as sio
 from abc import ABCMeta, abstractmethod
-
+from collections import OrderedDict
 
 def collect_exporters():
     exporters = {}
@@ -50,14 +50,14 @@ class TabExporter(Exporter):
     description = 'export to tab delimited files'
     args = {}
 
-    def export(self, features, samples, stats):
+    def export(self, features, samples, sample_stats):
         fnames = []
-        for name, sdict, stats in stats:
+        for name, sdict, stats in sample_stats:
             fname = name + '.tab'
             fnames.append(fname)
             fout = open(self.out_path + os.sep + fname, 'w')
             # header:
-            for f in features.values():
+            for f in features:
                 fout.write(str(f) + '\t' + '\t'.join(str(s.fvals[f]) for s in samples) + '\n')
             # counts
             for stat in stats:
@@ -75,24 +75,40 @@ class MatExporter(Exporter):
     def export(self, features, samples, sample_stats):
         fname = 'stats.mat'
         fpath = self.out_path + os.sep + fname
-        s = dict(lg={f.name:np.array([s.fvals[f] for s in samples]) for f in features})
+        s = dict(lg={})
+        for f in features:
+            dtype = np.object if f.type is str else np.double
+            s['lg'][f.name] = np.array([s.fvals[f] for s in samples], dtype=dtype)
+
         for name, sdict, stats in sample_stats:
+            s[name+'_lg'] = np.array(stats,dtype=np.object)
             s[name] = np.array([[float(sdict[s][stat]) for s in samples] for stat in stats])
 
-        # if self.r:
-        #     arr = np.empty([len(f.vals) for f in features])
-        #     r = dict(lg=)
-        #     r[name] = arr
-        #     for arri, si in self.sample2arr(s['lg'], r['lg']):
-        #         arr[(slice(None),) + arri] = s[name][:,si]
-        #     s['r'] = r
+        if self.r:
+            lg = OrderedDict()
+            for f in features: lg[f.name] = sorted(f.vals)
+            for name, _, _ in sample_stats:
+                dims = (s[name].shape[0],) + tuple([len(f.vals) for f in features])
+                arr = np.empty(dims)
+                for si, arri in enumerate(MatExporter.sample2arr(samples, features, lg)):
+                    itup = (slice(None),) + arri
+                    arr[itup] = s[name][:,si]
+                s['r_'+name] = arr
+            for f in features:
+                dtype = np.object if f.type is str else np.double
+                lg[f.name] = np.array(sorted(f.vals), dtype=dtype)
+            s['r_lg'] = lg
+        s['doc'] = np.array('"lg" is a short for "legend", there is a complex one ("lg") for the samples'
+                            ' and then another one for the rows of each table. "r_" is a prefix for reshaped '
+                            'data or respective legends',dtype=str)
         sio.savemat(fpath, {self.name: s})
         return [fname]
 
-    def sample2arr(self, lg, rlg):
-        idx_pairs = []
-        for fname, fvals in rlg.items(): pass
-
+    @staticmethod
+    def sample2arr(samples, features, rlg):
+        for s in samples:
+            r_idx = tuple(rlg[fname].index(s.fvals[f]) for f, fname in zip(features, rlg.keys()))
+            yield r_idx
 
 
 class NumpyExporter(Exporter):

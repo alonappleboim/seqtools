@@ -326,9 +326,9 @@ class MainHandler(object):
                 self.logger.log(lg.CRITICAL, msg)
             else:
                 cnts[sample] = info
-                self.cnt_ids = info.keys()
                 self.logger.log(lg.DEBUG, 'Collected counts for sample %s' % sample)
         self.cnts = OrderedDict()
+        self.cnt_ids = [k for k in info]
         for s in self.samples.values(): self.cnts[s] = cnts[s] # maintaining sample_db order
 
     def export(self):
@@ -765,7 +765,7 @@ def build_parser():
     g = p.add_argument_group('Export')
     g.add_argument('--exporters', '-E', action='store',
                    default='tab();mat(r=True)',
-                   help='specify a exporters for the pipeline data and statistics. default = "tab(),mat(r=True)"')
+                   help='specify a exporters for the pipeline data and statistics. default = "tab();mat(r=True)"')
     g.add_argument('--export_path', '-ep', default=None,
                    help='if given, exported data is copied to this path as well')
     g.add_argument('--exporter_specs', '-eh', action='store_true',
@@ -819,7 +819,7 @@ def parse_args(p):
              'for downstream analysis. Specifically - the statistics and TTS read counts. In addition,'
              'using the --export_path option will copy the outputs to the requested folder with a prefix of the '
              'experiment name.\n'
-             'A collection of exporters is given as a comma seprated list of exporter calls - an exporter name '
+             'A collection of exporters is given as a semicolon-separated list of exporter calls - an exporter name '
              'followed by parentheses with optional argument setting within. For example:\n'
              '"tab(),mat(r=True)" export all files in a tab delimited format and a matlab format with table reshaping'
              ' according to experimental features.')

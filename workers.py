@@ -162,11 +162,13 @@ def count(annot_file, window, files):
 
     cnt_dict = OrderedDict()
     with open(annot_file) as ttsf:
-        for line in ttsf: cnt_dict[line.split('\t')[0]] = '0'
+        for line in ttsf:
+            cnt_dict[line.split('\t')[0]] = '0'
 
     for line in ''.join(cnt.stdout.read().decode('utf-8')).split('\n'):
         if not line: continue
         sline = line.split('\t')
         cnt_dict[sline[3].strip()] = sline[6].strip()
+
     return cnt_dict
 

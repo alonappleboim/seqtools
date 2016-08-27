@@ -93,8 +93,9 @@ class SAMFilter(object):
         filter the data in fin into fout. Input can be assumed to be sorted by genomic position, and output should
         remain sorted similarly.
 
-        :param fin:  filehandle for SAM input without a header
-        :return: filehandle for SAM output without a header
+        :param fin:  filehandle for (headerless-)SAM input
+        :param filtered: a filepath to which filtered entries are written
+        :return: filehandle for (headerless-)SAM input
         """
         pass
 
