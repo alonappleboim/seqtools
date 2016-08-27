@@ -121,7 +121,7 @@ def make_bam(files, bowtie_exec, n_threads, scer, klac, fpipe):
     os.remove(files['tmp_bam'])
     Ns = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
     with open(files['align_stats'], 'w') as S:
-        S.write('\n'.join(['total\t%s' % Ns[0],
+        S.write('\n'.join([#'total\t%s' % Ns[0], no need, already added as n_reads
                            'no-align\t%s' % Ns[1],
                            'unique-align\t%s' % Ns[2],
                            'multiple-align\t%s' % Ns[3]]))

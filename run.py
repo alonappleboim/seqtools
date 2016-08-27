@@ -20,7 +20,6 @@ import shlex as sh
 import shutil
 
 from config import *
-import time
 
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     scriptpath = os.path.abspath(sys.modules[__name__].__file__)
@@ -189,8 +188,11 @@ class MainHandler(object):
 
         self.bc_len, self.samples, self.features = self.parse_sample_db()
         self.generate_dir_tree()
-        shutil.copy(self.sample_db, self.output_dir + os.sep + 'sample_db')
-        self.stats = {s.base_name(): Counter() for s in self.samples.values()}
+        sfname = self.output_dir + os.sep + 'sample_db.csv'
+        if not os.path.isfile(sfname): shutil.copy(self.sample_db, sfname)
+
+        self.stats = OrderedDict()
+        for s in self.samples.values(): self.stats[s.base_name()] = Counter()
         self.stat_order = []
         self.fpipe = build_filter_schemes('filter:'+self.filter)['filter']
         self.exporters = exporters_from_string(self.exporters, self.output_dir)
@@ -315,7 +317,7 @@ class MainHandler(object):
             args = dict(annot_file=self.tts_file, window=self.count_window, files=sf)
             token_map[self.w_manager.run(count, kwargs=args)] = sample
 
-        self.cnts = {}
+        cnts = {}
         while token_map:
             tok, e, info = self.comq.get()
             sample = token_map.pop(tok)
@@ -323,42 +325,29 @@ class MainHandler(object):
                 msg = 'error in counting sample %s:\n%s' % (sample, e)
                 self.logger.log(lg.CRITICAL, msg)
             else:
-                self.cnts[sample] = info
+                cnts[sample] = info
                 self.cnt_ids = info.keys()
                 self.logger.log(lg.DEBUG, 'Collected counts for sample %s' % sample)
+        self.cnts = OrderedDict()
+        for s in self.samples.values(): self.cnts[s] = cnts[s] # maintaining sample_db order
 
     def export(self):
-        stats = {self.get_sample(s):cnt for s, cnt in self.stats.items()}
+        stats = OrderedDict()
+        for s in self.samples.values():
+            stats[s] = self.stats[s.base_name()]
+        s = Sample()
+        for f in self.features.values(): s.fvals[f] = NO_BC_NAME
+        stats[s] = self.stats[NO_BC_NAME]
         all = [('stats', stats, self.stat_order),
-               ('tts_counts', self.cnts, self.cnt_ids)]
+               ('tts', self.cnts, self.cnt_ids)]
         for e in self.exporters:
-            fs = e.export(self.features, all)
+            fs = e.export(self.features.values(), self.samples.values(), all)
             for f in fs:
                 self.logger.log(lg.INFO, 'Exported data to file: %s' % f)
                 if self.export_path is not None:
-                    target = self.export_path + os.sep + f
-                    shutil.copy(f, target)
+                    target = self.export_path + os.sep + self.exp + '-' + f
+                    shutil.copy(self.output_dir + os.sep + f, target)
                     self.logger.log(lg.DEBUG, 'Copied data to: %s' % target)
-
-    def get_sample(self, sstr):
-        cands = self.samples.values()
-        no_sample = False
-        for featval in sstr.split('_'):
-            f, v = featval.split('-')
-            f = [F for F in self.features.values() if F.short_name == f]
-            if not f:
-                no_sample = True
-                break
-            f = f[0]
-            v = f.type(v)
-            cands = [c for c in cands if c.fvals[f] == v]
-        if len(cands) > 1: no_sample = True
-        if no_sample:
-            s = Sample()
-            for f in self.features.values(): s.fvals[f] = None
-        else:
-            s = cands[0]
-        return s
 
     def print_stats(self):
         stats = set([])
@@ -382,10 +371,8 @@ class MainHandler(object):
         fh.close()
 
     def get_mark(self):
-        fh = open(self.output_dir + os.sep + '.pipeline_state')
-        stage = int(fh.read().strip())
-        fh.close()
-        return stage
+        with open(self.output_dir + os.sep + '.pipeline_state') as fh:
+            return fh.read().strip()
 
     def copy_log(self):
         shutil.copy(self.logfile, self.output_dir + os.sep + 'full.log')
@@ -533,7 +520,7 @@ class MainHandler(object):
         if self.start_after != BEGIN:
             try:
                 cur = self.get_mark()
-                if USER_STATES[cur] >= USER_STATES[self.start_after]:
+                if USER_STATES[cur] >= self.start_after:
                     msg = 'restarting from %s in folder: %s ' % (self.start_after, self.output_dir)
                     self.logger.log(lg.INFO, msg)
                 else:
@@ -568,8 +555,6 @@ class MainHandler(object):
         self.fastq_dir = d + os.sep + self.fastq_dirname
         self.bw_dir = d + os.sep + self.bigwig_dirname
         self.bam_dir = d + os.sep + self.bam_dirname
-        if self.keep_filtered:
-            self.filtered_dir = d + os.sep + FILTERED_NAME
         if os.path.isdir(self.tmp_dir): shutil.rmtree(self.tmp_dir)
 
         if self.start_after == BEGIN:
@@ -578,11 +563,14 @@ class MainHandler(object):
             self.create_dir_and_log(self.fastq_dir)
             self.create_dir_and_log(self.bam_dir)
             self.create_dir_and_log(self.bw_dir)
-            self.create_dir_and_log(self.tmp_dir)
-            self.create_dir_and_log(self.filtered_dir)
+            if self.keep_filtered:
+                self.filtered_dir = d + os.sep + FILTERED_NAME
+                self.create_dir_and_log(self.filtered_dir)
             if self.keep_unaligned:
                 self.unaligned_dir = d + os.sep + UNALIGNED_NAME
                 self.create_dir_and_log(self.unaligned_dir)
+
+        self.create_dir_and_log(self.tmp_dir)
 
     def split_barcodes(self, no_bc=None):
         #
@@ -608,7 +596,7 @@ class MainHandler(object):
             return awk_str, cnt_path
 
         def merge_statistics(bc1, bc2):
-            stat = "#reads"
+            stat = "n_reads"
             self.stat_order.append(stat)
             self.stats[NO_BC_NAME] = Counter()
             with open(bc1) as IN:
@@ -626,7 +614,7 @@ class MainHandler(object):
             for s in self.samples.values():
                 if s.base_name() not in self.stats:
                     self.stats[s.base_name()][stat] += 0
-            msg = '\n'.join(['%s: %i' % (s, c['#reads']) for s, c in self.stats.items()])
+            msg = '\n'.join(['%s: %i' % (s, c[stat]) for s, c in self.stats.items()])
             self.logger.log(lg.CRITICAL, 'read counts:\n' + msg)
 
         hb = {}
@@ -698,7 +686,7 @@ def build_parser():
 
     g = p.add_argument_group('Output')
     g.add_argument('--output_dir', '-od', default=None, type=str,
-                   help='path to the folder in which most files are written'
+                   help='path to the folder in which most files are written. '
                         'If not given, the date and info from barcode file are used to '
                         'generate a new folder in %s' % DATA_PATH)
     g.add_argument('--fastq_dirname', '-fd', default='FASTQ', type=str,
@@ -711,7 +699,7 @@ def build_parser():
                    help="if provided these comma separated emails will receive notifications of ctitical "
                         "events (checkpoints, fatal errors, etc.)")
     g.add_argument('--debug', '-d', default=None, type=str,
-                   help='Highly recommended. Use this mode with a par of comma separated integers:'
+                   help='Highly recommended. Use this mode with a pair of comma separated integers:'
                         '<numlines>,<numsamples>. The pipeline will extract this number of lines from '
                         'every input file pair, and will only run with this number of samples out of the '
                         'given barcode file. If output folder (-od) is not given, results are written to '
@@ -719,18 +707,19 @@ def build_parser():
 
     g = p.add_argument_group('Barcode Splitting')
     g.add_argument('--sample_db', '-sd', type=str, default=None,
-                   help='a file with an experiment name in first row \n experiment: <expname>\nfollowed by a'
-                        ' header whose first column is "barcode", and the remaining entries are the features'
-                        'present in the experiment: <name>:(str|int|float)[units], with the units being optional.'
-                        'The remaining line define the experiment samples according to the header. Default is '
-                        '"sample_db.csv" in the folder of the --fastq_prefix input')
+                   help='a file with an experiment name in first row \n experiment: <expname> followed by a'
+                        ' header whose first column is "barcode", and the remaining entries are the features '
+                        'present in the experiment: <name>(short_name):(str|int|float)[units], with the '
+                        'units and short_name being optional. The remaining lines define the experiment samples '
+                        'according to the header. Default is "sample_db.csv" in the folder of the --fastq_prefix input')
     g.add_argument('--umi_length', '-ul', type=int, default=8,
                    help='UMI length')
     g.add_argument('--hamming_distance', '-hd', default=1, type=int,
                    help='barcode upto this hamming distance from given barcodes are handled by '
                         'the pipeline')
-    g.add_argument('--keep_nobarcode', '-kbc', action='store_true',
-                   help='keep fastq entries that did not match any barcode')
+    g.add_argument('--keep_nobarcode', '-knb', action='store_true',
+                   help='keep reads that did not match any barcode in a fastq file. Notice that the '
+                        'R1/R2 reads are interleaved in this file.')
 
     g = p.add_argument_group('Alignment')
     g.add_argument('--scer_index_path', '--sip', type=str, default='/cs/wetlab/genomics/scer/bowtie/sacCer3',
@@ -745,20 +734,21 @@ def build_parser():
                         'output_folder/%s/<sample_name>.bam' % UNALIGNED_NAME)
 
     g = p.add_argument_group('Filter',
-                             description='different filters applied to base BAM file. Each filter result is '
-                                         'processeed downstream and reported separately')
+                             description='different filters applied to base BAM file. Only reads that pass all filters '
+                                         'are passed on')
     g.add_argument('--filter', '-F', action='store',
                    default='dup(),qual()',
                    help='specify a filter scheme to apply to data. Expected string conforms to:\n' \
-                        '[<filter_name>([<argname1=argval1>,]+)[+|-]);]*\n. use "run -fh" for more info.')
-    g.add_argument('--keep_filtered', '--kf', action='store_true',
+                        '[<filter_name>([<argname1=argval1>,]+)[+|-]);]*\n. use "run -fh" for more info. '
+                        'default = "dup(),qual()"')
+    g.add_argument('--keep_filtered', '-kf', action='store_true',
                    help='if set, filtered reads are written to '
                         'output_folder/%s/<sample_name>.bam' % FILTERED_NAME)
     g.add_argument('--filter_specs', '-fh', action='store_true',
-                   default='print available filter specs and filter help and exit')
+                   help='print available filters, filter help and exit')
 
     g = p.add_argument_group('Execution and third party')
-    g.add_argument('--exec_on', '-eo', choices=['slurm', 'local'], default='slurm',
+    g.add_argument('--exec_on', '-eo', choices=['slurm', 'local'], default='local', #TODO implement slurm...
                    help='whether to to submit tasks to a slurm cluster (default), or just use the local processors')
     g.add_argument('--bowtie_exec', '-bx', type=str, default=BOWTIE_EXEC,
                    help='full path to bowtie executable')
@@ -768,17 +758,35 @@ def build_parser():
     g = p.add_argument_group('Count')
     g.add_argument('--tts_file', '-tf', default=TTS_MAP,
                    help='annotations for counting. Expected format is a tab delimited file with "chr", "ACC", "start",'
-                        '"end", and "TTS" columns.')
+                        '"end", and "TTS" columns. default is found at %s' % TTS_MAP)
     g.add_argument('--count_window', '-cw', default='-100,500',
-                   help='Comma separated limits for tts counting, relative to annotation TTS.')
+                   help='Comma separated limits for tts counting, relative to annotation TTS. default=-100,500')
 
     g = p.add_argument_group('Export')
     g.add_argument('--exporters', '-E', action='store',
-                   default='tab();mat(r=1)',
-                   help='specify a exporters for the pipeline data and statistics')
+                   default='tab();mat(r=True)',
+                   help='specify a exporters for the pipeline data and statistics. default = "tab(),mat(r=True)"')
     g.add_argument('--export_path', '-ep', default=None,
                    help='if given, exported data is copied to this path as well')
+    g.add_argument('--exporter_specs', '-eh', action='store_true',
+                   help='print available exporters, exporter help and exit')
     return p
+
+def pprint_class_with_args_dict(dict):
+    slist = []
+    for cls in dict.values():
+        args = cls.__dict__['args']
+        slist.append('Name: %s' % cls.__dict__['name'])
+        for a, v in cls.__dict__.items():
+            if a.startswith('__'): continue
+            if hasattr(v, '__call__'): continue
+            if a not in ['args', 'name']:
+                slist.append('\t%s: %s' % (str(a),str(v)))
+        slist.append('\targuments:')
+        for name, (type, default, desc) in args.items():
+            t = 'int' if type is int else 'float' if type is float else 'bool' if type is bool else 'str'
+            slist.append('\t\t%s(%s):, default: %s, description: %s' % (name, t, str(default), desc))
+    return '\n'.join(slist)
 
 
 def parse_args(p):
@@ -787,23 +795,57 @@ def parse_args(p):
     :return: the arguments parsed, after applying all argument logic and conversion
     """
     args = p.parse_args()
+
+    if args.filter_specs:
+        h = ('Any collection of filters can be applied. The only reads that are written to the BAM '
+             'folder are the ones that pass the complete list of filters. If you want to keep filtered '
+             'reads for inspection, use the --keep_filtered options, and they will be written to the '
+             '%s folder. Note that the reads are written by each filter separately, so any read that was '
+             'filtered by multiple filters will be written more than once. \n'
+             'A collection of filters is given as a comma seprated list of filter calls - a filter '
+             'name followed by parentheses with optional argument setting within. The parentheses are followed '
+             'by an optional +|- sign, to negate the filter ("-"). The default is "+". For example:\n'
+             '"dup(kind=start&umi),polya(n=5)" will only keep reads that are unique when considering only read '
+             'start position and the umi, and are considered polya reads with more than 5 A/T. See all available '
+             'filters below.\n') % (FILTERED_NAME,)
+        spec = pprint_class_with_args_dict(collect_filters())
+        print('\n========= FILTER HELP and SPECIFICATIONS =========\n')
+        print(h)
+        print(spec)
+        exit()
+
+    if args.exporter_specs:
+        h = ('Any collection of exporters can be given. Exporters format the quantiative output of the piplines '
+             'for downstream analysis. Specifically - the statistics and TTS read counts. In addition,'
+             'using the --export_path option will copy the outputs to the requested folder with a prefix of the '
+             'experiment name.\n'
+             'A collection of exporters is given as a comma seprated list of exporter calls - an exporter name '
+             'followed by parentheses with optional argument setting within. For example:\n'
+             '"tab(),mat(r=True)" export all files in a tab delimited format and a matlab format with table reshaping'
+             ' according to experimental features.')
+        spec = pprint_class_with_args_dict(collect_exporters())
+        print('\n========= EXPORTER HELP and SPECIFICATIONS =========\n')
+        print(h)
+        print(spec)
+        exit()
+
     args.__dict__['start_after'] = USER_STATES[args.start_after]
     if args.start_after != BEGIN:
         if args.output_dir is None:
             print('If the --start_after option is used, an existing output directory must be provided (-od).')
             exit()
-            args.__dict__['fastq_pref'] = args.output_dir  # ignoring input folder
+        args.__dict__['fastq_prefix'] = args.output_dir  # ignoring input folder
     else:
         if args.fastq_prefix is None:
-            print(
-                'If the --start_after option is not used, an input fastq prefix/folder mut be provided (--fastq_prefix).')
+            print('If the --start_after option is not used, an input '
+                  'fastq prefix/folder must be provided (--fastq_prefix).')
             exit()
-
     p, s = os.path.split(args.fastq_prefix)
     args.__dict__['fastq_path'] = p
     args.__dict__['fastq_pref'] = s
     args.__dict__['fastq_prefix'] = canonic_path(args.fastq_prefix)
     p, s = os.path.split(args.fastq_prefix)
+
     if args.sample_db is None:
         args.__dict__['sample_db'] = os.sep.join([args.fastq_path, 'sample_db.csv'])
 
@@ -814,6 +856,9 @@ def parse_args(p):
 
     if args.output_dir is not None:
         args.__dict__['output_dir'] = canonic_path(args.__dict__['output_dir'])
+
+    if args.export_path is not None:
+        args.__dict__['export_path'] = canonic_path(args.export_path)
 
     args.__dict__['count_window'] = [int(x) for x in args.count_window.split(',')]
     return args

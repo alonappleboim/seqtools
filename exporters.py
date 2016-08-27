@@ -1,6 +1,6 @@
 import os
 import sys
-import numpy
+import numpy as np
 from scipy import io as sio
 from abc import ABCMeta, abstractmethod
 
@@ -32,12 +32,16 @@ class Exporter(object):
         self.__dict__.update(kwargs)
 
     @abstractmethod
-    def export(self, sample_stats):
-        '''
-        export stats and counts to files in out_path
-        :param sample_stats: A dictionary of statistic names, and sample-based dictionary of statistic dictionaries.
+    def export(self, features, sample_stats):
+        """
+        export statistics to output_dir
+
+        :param features: the feature collection associated with the statistics
+        :param samples: a list of samples, determines output order of all stats
+        :param stats: a list of 3-tuples: name - used for identyifing the exported data, sdict - the statistics
+        dictionary, indexed by sample, and then by statistic, and stats - the statistic ordered names.
         :return: generated file names
-        '''
+        """
         pass
 
 
@@ -46,18 +50,18 @@ class TabExporter(Exporter):
     description = 'export to tab delimited files'
     args = {}
 
-    def export(self, sample_features, sample_stats):
+    def export(self, features, samples, stats):
         fnames = []
-        for name, sdict, stats in sample_stats:
+        for name, sdict, stats in stats:
             fname = name + '.tab'
             fnames.append(fname)
             fout = open(self.out_path + os.sep + fname, 'w')
             # header:
-            for f in sample_features.values():
-                fout.write(str(f) + '\t' + '\t'.join(str(s.fvals[f]) for s in sdict.keys()) + '\n')
+            for f in features.values():
+                fout.write(str(f) + '\t' + '\t'.join(str(s.fvals[f]) for s in samples) + '\n')
             # counts
             for stat in stats:
-                fout.write(stat + '\t' + '\t'.join(str(sdict[s][stat]) for s in sdict.keys()) + '\n')
+                fout.write(stat + '\t' + '\t'.join(str(sdict[s][stat]) for s in samples) + '\n')
             fout.close()
         return fnames
 
@@ -65,10 +69,30 @@ class TabExporter(Exporter):
 class MatExporter(Exporter):
     name = 'mat'
     description = 'export to a single matlab file'
-    args = {'r': (bool, True, 'whether to include a multidimensional array version of the data')}
+    args = {'r': (bool, True, 'whether to include a multidimensional array version of the data'),
+            'name': (str, 'tts', 'used as the matlab struct name.')}
 
-    def export(self, stats, counts):
-        return []
+    def export(self, features, samples, sample_stats):
+        fname = 'stats.mat'
+        fpath = self.out_path + os.sep + fname
+        s = dict(lg={f.name:np.array([s.fvals[f] for s in samples]) for f in features})
+        for name, sdict, stats in sample_stats:
+            s[name] = np.array([[float(sdict[s][stat]) for s in samples] for stat in stats])
+
+        # if self.r:
+        #     arr = np.empty([len(f.vals) for f in features])
+        #     r = dict(lg=)
+        #     r[name] = arr
+        #     for arri, si in self.sample2arr(s['lg'], r['lg']):
+        #         arr[(slice(None),) + arri] = s[name][:,si]
+        #     s['r'] = r
+        sio.savemat(fpath, {self.name: s})
+        return [fname]
+
+    def sample2arr(self, lg, rlg):
+        idx_pairs = []
+        for fname, fvals in rlg.items(): pass
+
 
 
 class NumpyExporter(Exporter):
