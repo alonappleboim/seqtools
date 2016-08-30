@@ -150,25 +150,20 @@ def make_tracks(files):
     return {}
 
 
-def count(annot_file, window, files):
-    # annotation format:
-    # ACC   chr   start end TTS
-    awkcmd = ''.join(["""{ if ($5 != "NaN") { """,
-                      """if ($3 < $4) {print $2"\\t"$5-%i"\\t"$5+%i"\\t"$1"\\t""1\\t+";}""" % (window[1],abs(window[0])),
-                      """else {print $2"\\t"$5+%i"\\t"$5+%i"\\t"$1"\\t""1\\t-";}}}""" % (window[0], window[1])])
-    awk = sp.Popen(['awk',awkcmd], stdin=open(annot_file), stdout=sp.PIPE)
+def count(annot_file, files):
     cnt = sp.Popen(sh.split('bedtools coverage -counts -a stdin -b %s' % files['bam']),
-                   stdin=awk.stdout, stdout=sp.PIPE) #stdout=open(files['tmp_cnt'],'wb'))
+                   stdin=open(annot_file), stdout=sp.PIPE)
 
     cnt_dict = OrderedDict()
     with open(annot_file) as ttsf:
         for line in ttsf:
-            cnt_dict[line.split('\t')[0]] = '0'
+            cnt_dict[line.split('\t')[3]] = 0
 
     for line in ''.join(cnt.stdout.read().decode('utf-8')).split('\n'):
         if not line: continue
         sline = line.split('\t')
         cnt_dict[sline[3].strip()] = sline[6].strip()
+    cnt.wait()
 
     return cnt_dict
 

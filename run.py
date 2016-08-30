@@ -18,6 +18,7 @@ import multiprocessing as mp
 import subprocess as sp
 import shlex as sh
 import shutil
+import pickle
 
 from config import *
 
@@ -178,6 +179,7 @@ class MainHandler(object):
 
     def __init__(self, argobj, cmdline):
         self.__dict__.update(argobj.__dict__)
+        self.args = argobj
 
         self.setup_log()
         self.logger.log(lg.INFO, 'commandline: %s' % cmdline)
@@ -195,6 +197,7 @@ class MainHandler(object):
         for s in self.samples.values(): self.stats[s.base_name()] = Counter()
         self.stat_order = []
         self.fpipe = build_filter_schemes('filter:'+self.filter)['filter']
+        self.logger.log(lg.INFO, 'Filters:\n' + str(self.fpipe))
         self.exporters = exporters_from_string(self.exporters, self.output_dir)
         self.w_manager = WorkManager(self.comq, self.exec_on=='slurm')
 
@@ -301,20 +304,38 @@ class MainHandler(object):
                 msg = 'error in making tracks for sample %s:\n%s' % (sample, e)
                 self.logger.log(lg.CRITICAL, msg)
             else:
-                # in principal the next step could start now, but then recovery options make the code
-                # practically unreadable, and the performance benefit is very small
+                # os.symlink(self.www_dir + os.sep + sample.base_name() + 'c.bw', sf['cbw'])
+                # os.symlink(self.www_dir + os.sep + sample.base_name() + 'w.bw', sf['wbw'])
                 self.logger.log(lg.DEBUG, '%s ready.' % sf['cbw'])
                 self.logger.log(lg.DEBUG, '%s ready.' % sf['wbw'])
+                # sample.url_c = self.www_dir + sample.base_name() + '.c.bw'
+                # sample.url_w = self.www_dir + sample.base_name() + '.w.bw'
+
+        # if self.www_dir is not None:
+        #     for
 
     def count(self):
         pass
         # TODO: this will be replaced by a proper analysis tool, for now it's just here to support current functionality
         self.logger.log(lg.INFO, 'Counting reads...')
+
+        # prepare input bed file for all workers
+        tmp_bed = self.tmp_dir + os.sep + 'tts.tmp.bed'
+        tts_bed = open(tmp_bed, 'w')
+        for line in open(self.tts_file):
+            acc, chr, start, end, tts = line.strip().split('\t')
+            if tts == 'NaN': continue
+            strand = int(start) < int(end)
+            fr = int(tts) + (-1) ** (1 - strand) * self.count_window[1 - strand]
+            to = int(tts) + (-1) ** (1 - strand) * self.count_window[strand]
+            tts_bed.write('\t'.join([chr, str(fr), str(to), acc, '1', '+' if strand else '-'])+'\n')
+        tts_bed.close()
+
         token_map = {}
         for bc, sample in self.samples.items():
             sf = sample.files
             sf['tmp_cnt'] = self.tmp_dir + os.sep + sample.base_name() + '.tmp.cnt'
-            args = dict(annot_file=self.tts_file, window=self.count_window, files=sf)
+            args = dict(annot_file=tmp_bed, files=sf)
             token_map[self.w_manager.run(count, kwargs=args)] = sample
 
         cnts = {}
@@ -327,6 +348,8 @@ class MainHandler(object):
             else:
                 cnts[sample] = info
                 self.logger.log(lg.DEBUG, 'Collected counts for sample %s' % sample)
+
+        os.remove(tmp_bed)
         self.cnts = OrderedDict()
         self.cnt_ids = [k for k in info]
         for s in self.samples.values(): self.cnts[s] = cnts[s] # maintaining sample_db order
@@ -572,6 +595,9 @@ class MainHandler(object):
 
         self.create_dir_and_log(self.tmp_dir)
 
+        # if self.www_path:
+        #     self.www_dir = self.www.path + os.sep + self.exp +
+
     def split_barcodes(self, no_bc=None):
         #
         #  first - compile awk scripts that will split input according to barcodes,
@@ -653,20 +679,50 @@ class MainHandler(object):
         if self.debug is None:
             shutil.rmtree(self.tmp_dir)
 
+        pickle.dump(self.args, open(self.output_dir + os.sep + 'args.pkl', 'wb'))
+
         # change permissions so everyone can read into folder
         for d, _, fs in os.walk(self.output_dir):
             st = os.stat(d)
             os.chmod(d, st.st_mode | stat.S_IRGRP | stat.S_IXGRP)
-        #     for f in fs:
-        #         path = os.sep.join([d,f])
-        #         st = os.stat(path)
-        #         os.chmod(path, st.st_mode)# | stat.S_IRGRP)
+
         self.logger.log(lg.CRITICAL, 'All done.')
         self.copy_log()
 
     def create_dir_and_log(self, path, level=lg.DEBUG):
         create_dir(path)
         self.logger.log(level, 'creating folder %s' % path)
+
+    def add_hub(self):
+        pass
+        # track_db = open(
+        # for (hf, hr), p, hd in zip(handles, paths, hdr):
+        #     hd + '_F', URL + hd + '_F.bw', 'pA - %s (F)' % hd, 'Wilkening 2013 polyA data, %s (forward)' % hd)
+        #     trackfile.write("track %s\n"
+        #                     "bigDataUrl %s\n"
+        #                     "shortLabel %s\n"
+        #                     "longLabel %s\n"
+        #                     "type bigWig\n"
+        #                     "visibility full\n"
+        #                     "viewLimits 0:500\n\n" % entries)
+        #     entries = (
+        #     hd + '_R', URL + hd + '_R.bw', 'pA - %s (R)' % hd, 'Wilkening 2013 polyA data, %s (reverse)' % hd)
+        #     trackfile.write("track %s\n"
+        #                     "bigDataUrl %s\n"
+        #                     "shortLabel %s\n"
+        #                     "longLabel %s\n"
+        #                     "type bigWig\n"
+        #                     "visibility full\n"
+        #                     "viewLimits -500:0\n\n" % entries)
+        # hubfile = open(hub_path + os.path.sep + 'hub.txt', 'wb')
+        # hubfile.write("hub %s\n"
+        #               "shortLabel pA sites\n"
+        #               "longLabel Data relevant to 3' processing and alternative UTRs\n"
+        #               "genomesFile genomes.txt\n"
+        #               "email  alonappleboim@gmail.com" % os.path.split(hub_path)[-1])
+        # genomesfile = open(hub_path + os.path.sep + 'genomes.txt', 'wb')
+        # genomesfile.write("genome sacCer3\n"
+        #                   "trackDb sacCer3%strackDB.txt" % os.path.sep)
 
 
 def build_parser():
@@ -755,11 +811,16 @@ def build_parser():
     g.add_argument('--samtools_exec', '-sx', type=str, default=SAMTOOLS_EXEC,
                    help='full path to samtools executable')
 
+    g = p.add_argument_group('Tracks')
+    g.add_argument('--www_path', '-wp', default= '~/www',
+                   help='in this path a hub folder is generated, that contains symbolic links to all bigwig files'
+                        'and a hub definition. The hub URL will be verified and produced.')
+
     g = p.add_argument_group('Count')
     g.add_argument('--tts_file', '-tf', default=TTS_MAP,
                    help='annotations for counting. Expected format is a tab delimited file with "chr", "ACC", "start",'
                         '"end", and "TTS" columns. default is found at %s' % TTS_MAP)
-    g.add_argument('--count_window', '-cw', default='-100,500',
+    g.add_argument('--count_window', '-cw', type=str, default='[-500,100]',
                    help='Comma separated limits for tts counting, relative to annotation TTS. default=-100,500')
 
     g = p.add_argument_group('Export')
@@ -771,6 +832,7 @@ def build_parser():
     g.add_argument('--exporter_specs', '-eh', action='store_true',
                    help='print available exporters, exporter help and exit')
     return p
+
 
 def pprint_class_with_args_dict(dict):
     slist = []
@@ -860,7 +922,7 @@ def parse_args(p):
     if args.export_path is not None:
         args.__dict__['export_path'] = canonic_path(args.export_path)
 
-    args.__dict__['count_window'] = [int(x) for x in args.count_window.split(',')]
+    args.__dict__['count_window'] = [int(x) for x in args.count_window[1:-1].split(',')]
     return args
 
 

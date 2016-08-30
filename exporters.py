@@ -75,17 +75,19 @@ class MatExporter(Exporter):
     def export(self, features, samples, sample_stats):
         fname = 'stats.mat'
         fpath = self.out_path + os.sep + fname
-        s = dict(lg={})
+        lg = {}
         for f in features:
             dtype = np.object if f.type is str else np.double
-            s['lg'][f.name] = np.array([s.fvals[f] for s in samples], dtype=dtype)
+            lg[f.name] = np.array([s.fvals[f] for s in samples], dtype=dtype)
 
+        s = dict(lg=lg)
         for name, sdict, stats in sample_stats:
-            s[name+'_lg'] = np.array(stats,dtype=np.object)
+            lg[name] = np.array(stats,dtype=np.object)
             s[name] = np.array([[float(sdict[s][stat]) for s in samples] for stat in stats])
 
         if self.r:
             lg = OrderedDict()
+            r = {}
             for f in features: lg[f.name] = sorted(f.vals)
             for name, _, _ in sample_stats:
                 dims = (s[name].shape[0],) + tuple([len(f.vals) for f in features])
@@ -93,11 +95,12 @@ class MatExporter(Exporter):
                 for si, arri in enumerate(MatExporter.sample2arr(samples, features, lg)):
                     itup = (slice(None),) + arri
                     arr[itup] = s[name][:,si]
-                s['r_'+name] = arr
+                r[name] = arr
             for f in features:
                 dtype = np.object if f.type is str else np.double
                 lg[f.name] = np.array(sorted(f.vals), dtype=dtype)
-            s['r_lg'] = lg
+            r['lg'] = lg
+        s['r'] = r
         s['doc'] = np.array('"lg" is a short for "legend", there is a complex one ("lg") for the samples'
                             ' and then another one for the rows of each table. "r_" is a prefix for reshaped '
                             'data or respective legends',dtype=str)
