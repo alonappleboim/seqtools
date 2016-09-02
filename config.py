@@ -3,6 +3,7 @@
 DATA_PATH = '/cs/bd/SequencingData/TranSEQ/'
 LOG_PATH = '/cs/bd/TranSEQ/logs'
 LOCAL_BIN = '/cs/bd/tools/'
+URL_BASE = 'http://www.cs.huji.ac.il/~'
 
 #input
 DELIM = ','

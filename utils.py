@@ -1,22 +1,14 @@
 import getpass
-from collections import OrderedDict
-import subprocess as sp
-import threading as th
-import logging as lg
-import multiprocessing as mp
-import shlex as sh
 import datetime
 import os
-import re
 from config import *
-from config import SCER_GENOME_LENGTH_PATH as SGLP
 
 
 def create_dir(path):
     if not os.path.exists(path): os.mkdir(path)
 
 
-def buffered_lines(buffer, buf_size=1024):
+def buff_lines(buffer, buf_size=1024):
     prev = ''
     while True:
         data = buffer.read(buf_size)
@@ -27,29 +19,6 @@ def buffered_lines(buffer, buf_size=1024):
             prev = lines.pop(-1)
             for line in lines: yield line
     yield prev
-
-
-def parse_bowtie_stats(bytestream):
-    # parse this output:
-    # <line>*
-    # 10263 reads;
-    # of these:
-    #     10263(100.00 %) were unpaired;
-    #     of these:
-    #         1055(10.28 %) aligned 0 times
-    #         4337(42.26 %) aligned exactly 1 time
-    #         4871(47.46 %) aligned > 1 times
-    # 89.72 % overall alignment rate
-    # <line>*
-    nlines, Ns = 0, []
-    for i, line in enumerate(''.join(bytestream.read().decode('utf8')).split('\n')):
-        m = re.match('\s*(\d+).*', line)
-        if m is not None:
-            if int(m.group(1)) == 0: return [0, 0, 0, 0]  # no reads...
-            nlines += 1
-            if nlines in [2, 3, 4, 5]:
-                Ns.append(m.group(1))
-    return {'no-align':Ns[1], 'unique-align':Ns[2], 'multiple-align':Ns[3]}
 
 
 def get_logfile(string=''):
@@ -93,61 +62,6 @@ def block_exec(command, on_slurm, stdout=None):
 
 def canonic_path(fname):
     return os.path.abspath(os.path.expanduser(fname))
-
-
-class FeatureCollection(OrderedDict):
-
-    def __init__(self):
-        super(FeatureCollection, self).__init__()
-
-    def add_feature(self, feat):
-        for f in self.values():
-            if f.short_name == feat.short_name: raise ValueError()
-            if f.name == feat.name: raise ValueError()
-        self[feat.name] = feat
-        if feat.short_name is None:
-            i = 1
-            short_names = set(f.short_name for f in self.values())
-            while i <= len(feat.name):
-                n = feat.name[:i].lower()
-                if n in short_names: continue
-                feat.short_name = n
-                break
-        if feat.short_name is None:
-            raise ValueError()
-
-
-class Feature(object):
-
-    def __init__(self, name, type, short_name=None, units=None):
-        self.name = name.lower()
-        self.short_name = short_name
-        self.strtype = type.lower()
-        self.type = str if type=='str' else int if type == 'int' else float
-        self.units = units
-        self.vals = set([])
-
-    def __str__(self):
-        return '%s(%s)[%s]:%s' % (self.name, self.short_name, self.units, self.strtype)
-
-    def __repr__(self): return str(self)
-
-
-class Sample(object):
-
-    def __init__(self):
-        self.fvals = OrderedDict()
-        self.barcode = None
-        self.files = {}
-
-    def base_name(self):
-        return '_'.join('%s-%s' % (f.short_name, str(v)) for f, v in self.fvals.items())
-
-    def __repr__(self):
-        return self.base_name()
-
-    def __hash__(self):
-        return hash(tuple(self.fvals.values()))
 
 
 if __name__ == '__main__':

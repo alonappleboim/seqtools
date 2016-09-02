@@ -1,14 +1,13 @@
 from collections import OrderedDict
 import os
-import sys
 import subprocess as sp
 import multiprocessing as mp
-from queue import Empty
 import shlex as sh
 import re
 import threading
 import traceback
 
+from utils import buff_lines
 from config import *
 from config import SCER_GENOME_LENGTH_PATH as SGLP
 
@@ -16,82 +15,36 @@ MAX_TRIALS = 3
 
 
 class WorkManager(object):
-    """
-    An object that allows one to send parallel tasks without worrying about where and when they are executed.
-    To use it:
-    wm = WorkManager()
-    wm.exec(func1, kwargs=dict())
-    d# do stuff without waiting
-    wm.exec(func1, kwargs=dict(), report_q=myQ)
-    result, err = myQ.get() # waiting for result
-    if err is None: handle(result)
-    """
 
-    def dispatch(self):
-        """
-        constantly try and execute new tasks from the work queue until notified by manager, whilst keeping
-        number of active workers below set number
-        """
-        wid, roster, tasks, incoming = 0, {}, [], True
-        intercom = self.get_channel('internal')
-        while incoming or roster or tasks:
-            # executing tasks
-            while len(roster) < self.max_w and tasks:
-                func, kwargs, repq_name = tasks.pop()
-                w = mp.Process(target=self.exec_wrapper,
-                               args=(func, kwargs, repq_name, wid, self.use_slurm))
-                w.start()
-                roster[wid] = w
-                wid += 1
-            # collect new tasks
-            if incoming:
-                while True:
-                    try:
-                        task = self.radio['work'].get(timeout=self.delay)
-                        if task is None: incoming = False  # no more incoming tasks
-                        else: tasks.append(task)
-                    except Empty: break
-            # remove completed tasks from roster
-            while True:
-                try: del roster[intercom.get(timeout=self.delay)]
-                except Empty: break
+    def __init__(self, comq, is_slurm=False):
+        self.comq = comq
+        self.is_slurm = is_slurm
+        self.token = 0
 
-    def __init__(self, use_slurm=False, max_w=sys.maxsize, delay=.1):
-        self.manager = mp.Manager()
-        self.radio = {}
-        self.get_channel('work')
-        self.use_slurm = use_slurm
-        self.max_w = max_w
-        self.delay = delay
-        self.dispatcher = threading.Thread(target=self.dispatch)
-        self.dispatcher.start()
+    def get_token(self):
+        t = self.token
+        self.token += 1
+        return t
 
-    def get_channel(self, qname):
-        self.radio[qname] = self.manager.Queue()
-        return self.radio[qname]
+    def run(self, func, kwargs):
+        tok = self.get_token()
+        if not self.is_slurm:
+            w = mp.Process(target=WorkManager.exec_wrapper,
+                           args=(func, kwargs, self.comq, tok))
+            w.daemon = True
+            w.start()
+        else:
+            pass
 
-    def close(self):
-        self.radio['work'].put(None)
-
-    def execute(self, func, kwargs, repq_name=None):
-        """
-        execute func with kwargs, and report results to the mp.Queue "report_q"
-        """
-        self.radio['work'].put((func, kwargs, repq_name))
-
-    def exec_wrapper(self, f, kwargs, repq_name, wid, use_slurm):
-        err = None  # benefit of the doubt
-        kwargs['radio'] = self.radio
-        try:
-            if use_slurm: out = WorkManager.slurm_exec(f, kwargs)
-            else: out = f(**kwargs)
-        except Exception:
-            out, err = None, traceback.format_exc(10)
-        if repq_name is not None: self.radio[repq_name].put((out, err))
-        self.radio['internal'].put(wid)  # notify dispatcher that I'm done
+        return tok
 
     @staticmethod
-    def slurm_exec(): pass
+    def exec_wrapper(f, kwargs, comq, token):
+        try:
+            info = f(**kwargs)
+            comq.put((token, None, info))
+        except Exception:
+            comq.put((token, traceback.format_exc(10), None))
 
 
 def format_fastq(files, bc_len, umi_len):
@@ -199,42 +152,16 @@ def make_tracks(files):
 
 def count(annot_file, files):
     cnt = sp.Popen(sh.split('bedtools coverage -counts -a stdin -b %s' % files['bam']),
-                   stdin=open(annot_file), stdout=sp.PIPE)
-
+                   stdin=open(annot_file), stdout=open(files['tmp_cnt'],'wb'))
     cnt_dict = OrderedDict()
     with open(annot_file) as ttsf:
         for line in ttsf:
             cnt_dict[line.split('\t')[3]] = 0
-
-    for line in ''.join(cnt.stdout.read().decode('utf-8')).split('\n'):
-        if not line: continue
-        sline = line.split('\t')
-        cnt_dict[sline[3].strip()] = sline[6].strip()
     cnt.wait()
-
+    with open(files['tmp_cnt']) as tmp:
+        for line in tmp:
+            if not line: continue
+            sline = line.split('\t')
+            cnt_dict[sline[3].strip()] = sline[6].strip()
     return cnt_dict
 
-
-if __name__ == '__main__':
-    import time
-
-
-    def log(lq):
-        for msg in iter(lq.get,None):
-            print(msg)
-
-    def f(x, radio=None):
-        channel = tq.get()
-        radio[channel].put(print(x**2))
-        time.sleep((x*3)**.5)
-        radio[channel].put(print(x**.5))
-
-    wm = WorkManager(False, 2, 1)
-    lq = wm.get_channel('log')
-    tq = wm.get_channel('tmp')
-    lp = mp.Process(target=log, args=(lq,))
-    lp.start()
-    for i in range(5):
-        wm.execute(f, {'x':i})
-        tq.put('log')
-    wm.close()
