@@ -320,13 +320,23 @@ class MainHandler(object):
         # prepare input bed file for all workers
         tmp_bed = self.tmp_dir + os.sep + 'tts.tmp.bed'
         tts_bed = open(tmp_bed, 'w')
+        chrlens = chr_lengths()
+        self.tts_accs = []
         for line in open(self.tts_file):
-            acc, chr, start, end, tts = line.strip().split('\t')
-            if tts == 'NaN': continue
-            strand = int(start) < int(end)
-            fr = int(tts) + (-1) ** (1 - strand) * self.count_window[1 - strand]
-            to = int(tts) + (-1) ** (1 - strand) * self.count_window[strand]
-            tts_bed.write('\t'.join([chr, str(fr), str(to), acc, '1', '+' if strand else '-'])+'\n')
+            acc, chr, orf_start, orf_end, tts = line.strip().split('\t')
+            if chr == 'chrXVII': chr = 'chrM'
+            orf_start, orf_end = int(orf_start), int(orf_end)
+            strand = orf_start < orf_end
+            tts_annot_problem = tts == 'NaN' or \
+                                (strand and int(tts) < orf_end) or \
+                                (not strand and int(tts) > orf_end)
+            tts = orf_end if tts_annot_problem else int(tts)
+            w_fr = max(0, tts + ((-1) ** (1 - strand)) * self.count_window[1 - strand])
+            w_to = min(chrlens[chr], tts + ((-1) ** (1-strand)) * self.count_window[strand])
+            if acc == 'XXX':
+                print(strand, orf_start,orf_end,tts_annot_problem,tts,w_fr,w_to)
+            tts_bed.write('\t'.join([chr, str(w_fr), str(w_to), acc, '1', '+' if strand else '-'])+'\n')
+            self.tts_accs.append(acc)
         tts_bed.close()
 
         token_map = {}
@@ -347,10 +357,13 @@ class MainHandler(object):
                 cnts[sample] = info
                 self.logger.log(lg.DEBUG, 'Collected counts for sample %s' % sample)
 
-        os.remove(tmp_bed)
-        self.cnts = OrderedDict()
-        self.cnt_ids = [k for k in info]
-        for s in self.samples.values(): self.cnts[s] = cnts[s] # maintaining sample_db order
+        if self.keep_tts_bed:
+            shutil.copy(tmp_bed, self.output_dir)
+        else:
+            os.remove(tmp_bed)
+
+        self.tts_cnts = OrderedDict()
+        for s in self.samples.values(): self.tts_cnts[s] = cnts[s] # maintaining sample_db order
 
     def export(self):
         stats = OrderedDict()
@@ -360,11 +373,11 @@ class MainHandler(object):
         for f in self.features.values(): s.fvals[f] = NO_BC_NAME
         stats[s] = self.stats[NO_BC_NAME]
         all = [('stats', stats, self.stat_order),
-               ('tts', self.cnts, self.cnt_ids)]
+               ('tts', self.tts_cnts, self.tts_accs)]
         for e in self.exporters:
             fs = e.export(self.features.values(), self.samples.values(), all)
             for f in fs:
-                self.logger.log(lg.INFO, 'Exported data to file: %s' % f)
+                self.logger.log(lg.INFO, 'Exported data to file: %s' % (self.output_dir+os.sep+f,))
                 if self.export_path is not None:
                     target = self.export_path + os.sep + self.exp + '-' + f
                     shutil.copy(self.output_dir + os.sep + f, target)
@@ -892,7 +905,9 @@ def build_parser():
     g.add_argument('--tts_file', '-tf', default=TTS_MAP,
                    help='annotations for counting. Expected format is a tab delimited file with "chr", "ACC", "start",'
                         '"end", and "TTS" columns. default is found at %s' % TTS_MAP)
-    g.add_argument('--count_window', '-cw', type=str, default='[-500,100]',
+    g.add_argument('--keep_tts_bed', '-ktb', action='store_true',
+                   help='whether the TTS window definition bed file should be kept or dicarded')
+    g.add_argument('--count_window', '-cw', type=str, default='[-750,250]',
                    help='Comma separated limits for tts counting, relative to annotation TTS. default=-100,500')
 
     g = p.add_argument_group('Export')

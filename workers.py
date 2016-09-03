@@ -151,8 +151,8 @@ def make_tracks(files):
 
 
 def count(annot_file, files):
-    cnt = sp.Popen(sh.split('bedtools coverage -counts -a stdin -b %s' % files['bam']),
-                   stdin=open(annot_file), stdout=open(files['tmp_cnt'],'wb'))
+    cnt = sp.Popen(sh.split('bedtools coverage -s -counts -a %s -b %s' % (annot_file, files['bam'])),
+                   stdout=open(files['tmp_cnt'],'wb'))
     cnt_dict = OrderedDict()
     with open(annot_file) as ttsf:
         for line in ttsf:
@@ -163,5 +163,6 @@ def count(annot_file, files):
             if not line: continue
             sline = line.split('\t')
             cnt_dict[sline[3].strip()] = sline[6].strip()
+    os.remove(files['tmp_cnt'])
     return cnt_dict
 

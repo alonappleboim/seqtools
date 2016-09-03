@@ -8,6 +8,15 @@ def create_dir(path):
     if not os.path.exists(path): os.mkdir(path)
 
 
+def chr_lengths():
+    cl = {}
+    with open(SCER_GENOME_LENGTH_PATH) as cl_file:
+        for line in cl_file:
+            c, l = line.strip().split('\t')
+            cl[c] = int(l)
+    return cl
+
+
 def buff_lines(buffer, buf_size=1024):
     prev = ''
     while True:

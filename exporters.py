@@ -70,11 +70,10 @@ class MatExporter(Exporter):
     name = 'mat'
     description = 'export to a single matlab file'
     args = {'r': (bool, True, 'whether to include a multidimensional array version of the data'),
-            'name': (str, 'tts', 'used as the matlab struct name.')}
+            'name': (str, 'tts.mat', 'used as the file name and the matlab struct name.')}
 
     def export(self, features, samples, sample_stats):
-        fname = 'stats.mat'
-        fpath = self.out_path + os.sep + fname
+        fpath = self.out_path + os.sep + self.name
         lg = {}
         for f in features:
             dtype = np.object if f.type is str else np.double
@@ -82,7 +81,7 @@ class MatExporter(Exporter):
 
         s = dict(lg=lg)
         for name, sdict, stats in sample_stats:
-            lg[name] = np.array(stats,dtype=np.object)
+            lg[name] = np.array(stats, dtype=np.object)
             s[name] = np.array([[float(sdict[s][stat]) for s in samples] for stat in stats])
 
         if self.r:
@@ -105,7 +104,7 @@ class MatExporter(Exporter):
                             ' and then another one for the rows of each table. "r_" is a prefix for reshaped '
                             'data or respective legends',dtype=str)
         sio.savemat(fpath, {self.name: s})
-        return [fname]
+        return [self.name]
 
     @staticmethod
     def sample2arr(samples, features, rlg):
