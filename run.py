@@ -333,8 +333,9 @@ class MainHandler(object):
             tts = orf_end if tts_annot_problem else int(tts)
             w_fr = max(0, tts + ((-1) ** (1 - strand)) * self.count_window[1 - strand])
             w_to = min(chrlens[chr], tts + ((-1) ** (1-strand)) * self.count_window[strand])
-            if acc == 'XXX':
-                print(strand, orf_start,orf_end,tts_annot_problem,tts,w_fr,w_to)
+            if not self.dont_bound_start:
+                if strand: w_fr = max(w_fr, orf_start)
+                else: w_to = min(w_to, orf_start)
             tts_bed.write('\t'.join([chr, str(w_fr), str(w_to), acc, '1', '+' if strand else '-'])+'\n')
             self.tts_accs.append(acc)
         tts_bed.close()
@@ -907,6 +908,8 @@ def build_parser():
                         '"end", and "TTS" columns. default is found at %s' % TTS_MAP)
     g.add_argument('--keep_tts_bed', '-ktb', action='store_true',
                    help='whether the TTS window definition bed file should be kept or dicarded')
+    g.add_argument('--dont_bound_start', '-dbs', action='store_false',
+                   help='do not limit counting window orf start (i.e. if longer thatn ORF, trim counting window)')
     g.add_argument('--count_window', '-cw', type=str, default='[-750,250]',
                    help='Comma separated limits for tts counting, relative to annotation TTS. default=-100,500')
 
