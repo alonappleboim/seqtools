@@ -20,9 +20,15 @@ from config import *
 
 from workers import *
 from exporters import *
-from analyzers import *
 from utils import *
 from filters import *
+
+if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
+    import subprocess as sp
+    import os
+    scriptpath = os.path.abspath(sys.modules[__name__].__file__)
+    sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
+    exit()
 
 
 BEGIN = 0
