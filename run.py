@@ -1,7 +1,3 @@
-"""
-This script performs the preprocessing steps and starts a dedicated process for every sample.
- """
-
 
 import stat
 from collections import Counter, OrderedDict
@@ -22,11 +18,6 @@ import pickle
 
 from config import *
 
-if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
-    scriptpath = os.path.abspath(sys.modules[__name__].__file__)
-    sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
-    exit()
-
 from workers import *
 from exporters import *
 from analyzers import *
@@ -40,118 +31,6 @@ BAM = 2
 
 STATES = ['BEGIN', 'FASTQ', 'BAM']
 USER_STATES = {'BEGIN':BEGIN, 'FASTQ':FASTQ, 'BAM':BAM}
-
-
-class FeatureCollection(OrderedDict):
-
-    def __init__(self):
-        super(FeatureCollection, self).__init__()
-
-    def add_feature(self, feat):
-        for f in self.values():
-            if f.short_name == feat.short_name: raise ValueError()
-            if f.name == feat.name: raise ValueError()
-        self[feat.name] = feat
-        if feat.short_name is None:
-            i = 1
-            short_names = set(f.short_name for f in self.values())
-            while i <= len(feat.name):
-                n = feat.name[:i].lower()
-                if n in short_names: continue
-                feat.short_name = n
-                break
-        if feat.short_name is None:
-            raise ValueError()
-
-
-class Feature(object):
-
-    def __init__(self, name, type, short_name=None, units=None):
-        self.name = name.lower()
-        self.short_name = short_name
-        self.strtype = type.lower()
-        self.type = str if type=='str' else int if type == 'int' else float
-        self.units = units
-        self.vals = set([])
-
-    def __str__(self):
-        return '%s(%s)[%s]:%s' % (self.name, self.short_name, self.units, self.strtype)
-
-    def __repr__(self): return str(self)
-
-
-class Sample(object):
-
-    def __init__(self):
-        self.fvals = OrderedDict()
-        self.barcode = None
-        self.files = {}
-
-    def base_name(self):
-        return '_'.join('%s-%s' % (f.short_name, str(v)) for f, v in self.fvals.items())
-
-    def full_name(self):
-        return '_'.join('%s-%s' % (f.name, str(v)) for f, v in self.fvals.items())
-
-    def __repr__(self):
-        return self.base_name()
-
-    def __hash__(self):
-        return hash(tuple(self.fvals.values()))
-
-
-# class SampleManager(object):
-#     # TODO: in future versions, all sample logic will be managed by this object, and the pipeline manager will just run these and perform certain tasks when all samples report at specific checkpoints.
-#     def __init__(self, sample, **kwargs):
-#         self.sample = sample
-#         self.__dict__.update(kwargs)
-#
-#     def collect_fastq(self):
-#         pass
-#
-#     def align(self):
-#         pass
-#
-#     def lactis_count(self):
-#         pass
-#
-#     def handle(self, start_from=BEGIN):
-#         if start_from <= BEGIN:
-#             self.wm.run(self.collect_fastq, self.comq)
-#             err, stat = self.comq.get() #blocking until done
-#             if err:
-#                 msg = "could not collect FASTQ files for sample %s:\n%s" % (self.short_name(), stat)
-#                 self.logq.put((lg.ERROR, msg))
-#                 return
-#             else:
-#                 self.stats.update(stat)
-#                 self.mainq.put((id(self), FASTQ))
-#                 msg = "FASTQ file ready (#reads: %i): %s" % (self.stats['#reads'], self.files['fastq'])
-#                 self.logq.put((lg.INFO, msg))
-#         if self.count_foreign:
-#             self.wm.run(self.count_foreign, self.comq)
-#             err, stat = self.comq.get()  # blocking until done
-#             if err:
-#                 msg = "Problem with foreign alignment counting in sample %s:\n%s" % (self.short_name(), stat)
-#                 self.logq.put((lg.ERROR, msg))
-#             else:
-#                 self.stats.update(stat)
-#                 self.mainq.put((id(self), FOREIGN))
-#                 msg = "FASTQ file ready (#reads: %i): %s" % (self.stats['#reads'], self.files['fastq'])
-#                 self.logq.put((lg.INFO, msg))
-#
-#         if start_from <= BAM:
-#             self.wm.run(self.align, self.comq)
-#             err, stat = self.comq.get()  # blocking until done
-#             if err:
-#                 msg = "could not collect FASTQ files for sample %s:\n%s" % (self.short_name(), stat)
-#                 self.logq.put((lg.ERROR, msg))
-#                 return
-#             else:
-#                 self.stats.update(stat)
-#                 self.mainq.put((id(self), FASTQ))
-#                 msg = "FASTQ file ready (#reads: %i): %s" % (self.stats['#reads'], self.files['fastq'])
-#                 self.logq.put((lg.INFO, msg))
 
 
 class MainHandler(object):
@@ -207,9 +86,9 @@ class MainHandler(object):
     def execute(self):
         if self.start_after <= BEGIN: self.make_fastq()
         if self.start_after <= FASTQ: self.make_bam()
-        if self.start_after <= BAM: self.track()
-        if self.start_after <= BAM: self.count()
-        if self.start_after <= BAM: self.export()
+        self.track()
+        self.count()
+        self.export()
         self.aftermath()
 
     def make_fastq(self):
@@ -610,7 +489,7 @@ class MainHandler(object):
                 self.create_dir_and_log(self.unaligned_dir)
 
         if self.make_hub:
-            self.www_dir = self.exp
+            if self.www_dir is None: self.www_dir = self.exp
             self.www_path = canonic_path('~/www/%s' % self.www_dir)
 
         self.create_dir_and_log(self.tmp_dir)
@@ -901,6 +780,9 @@ def build_parser():
                    help='prevent the pipeline from genrating a browser hub in your www folder')
     g.add_argument('--hub_email', '-he', action='store', default='noemail@nodomain.com',
                    help='the contact email for the generated hub')
+    g.add_argument('--www_dir', '-wd', action='store', default=None,
+                   help='the directory in which the hub is generated. If not given, '
+                        'experiment name is used.')
 
     g = p.add_argument_group('Count')
     g.add_argument('--tts_file', '-tf', default=TTS_MAP,
