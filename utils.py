@@ -3,6 +3,7 @@ import getpass
 import datetime
 import os
 import sys
+import subprocess as sp
 import re
 from config import *
 
@@ -175,8 +176,10 @@ def get_logfile(string=''):
     now = datetime.datetime.now()
     p = LOG_PATH + os.sep + str(now.year)
     create_dir(p)
+    sp.call('chmod -R 770 %s' % p, shell=True)
     p += os.sep + str(now.month)
     create_dir(p)
+    sp.call('chmod -R 770 %s' % p, shell=True)
     fname = '%s-%i-%ih%im%s-%s' % (getpass.getuser(), now.day, now.hour, now.minute, now.second, string)
     return p + os.sep + fname
 
