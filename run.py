@@ -480,7 +480,6 @@ class MainHandler(object):
         if os.path.islink(self.bw_dir): os.remove(self.bw_dir)
         elif os.path.isdir(self.bw_dir): shutil.rmtree(self.bw_dir)
 
-
         if self.start_after == BEGIN:
             # assuming all folder structure exists if check passes
             self.create_dir_and_log(d, lg.INFO)
@@ -524,8 +523,8 @@ class MainHandler(object):
                           "trackDb sacCer3/trackDB.txt")
         trackfile = open(sacpath + os.path.sep + 'trackDB.txt', 'w')
         for s in self.samples.values():
-            wurl = os.sep.join([URL_BASE, self.www_rel, os.path.split(s.files['wbw'])[1]])
-            curl = os.sep.join([URL_BASE, self.www_rel, os.path.split(s.files['cbw'])[1]])
+            wurl = os.sep.join([URL_BASE, self.www_rel, self.bigwig_dirname, os.path.split(s.files['wbw'])[1]])
+            curl = os.sep.join([URL_BASE, self.www_rel, self.bigwig_dirname, os.path.split(s.files['cbw'])[1]])
             hdr = '\n'.join(['track %s' % s.base_name(),
                              'container multiWig',
                              'aggregate transparentOverlay',
