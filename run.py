@@ -121,7 +121,7 @@ class MainHandler(object):
             else:
                 # in principal the next step could start now, but then recovery options make the code
                 # practically unreadable, and the performance benefit is very small
-                self.logger.log(lg.DEBUG, '%s ready.' % sf['fastq'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sample.files['fastq'])
         self.logger.log(lg.INFO, 'fastq files were written to: %s' % self.fastq_dir)
         self.checkpoint(FASTQ)
 
@@ -158,7 +158,7 @@ class MainHandler(object):
                 if 'passed_filter' not in self.stat_order:
                     self.stat_order.append('passed_filter')
                 self.stats[sample.base_name()]['passed_filter'] = info
-                self.logger.log(lg.DEBUG, '%s ready.' % sf['bam'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sample.files['bam'])
 
         for f in os.listdir(self.tmp_dir):
             if not f.endswith(BT_STATS_SUFF): continue
@@ -192,8 +192,8 @@ class MainHandler(object):
                 msg = 'error in making tracks for sample %s:\n%s' % (sample, e)
                 self.logger.log(lg.CRITICAL, msg)
             else:
-                self.logger.log(lg.DEBUG, '%s ready.' % sf['cbw'])
-                self.logger.log(lg.DEBUG, '%s ready.' % sf['wbw'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sample.files['cbw'])
+                self.logger.log(lg.DEBUG, '%s ready.' % sample.files['wbw'])
 
         if self.make_hub: self.build_hub()
 
