@@ -1,18 +1,13 @@
 import sys
 
-INTERPRETER = '/usr/local/opt/python3/bin/python3.5'
-if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
-    import subprocess as sp
-    import os
-    scriptpath = os.path.abspath(sys.modules[__name__].__file__)
-    sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
-    exit()
+INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 
 # paths
 DATA_PATH = '/cs/bd/SequencingData/TranSEQ/'
 LOG_PATH = '/cs/bd/TranSEQ/logs'
 LOCAL_BIN = '/cs/bd/tools/'
-URL_BASE = 'http://www.cs.huji.ac.il/~'
+URL_BASE = 'http://www.cs.huji.ac.il/labs/nirf/track_hubs'
+WWW_PATH = '/cs/bd/track_hubs'
 
 #input
 DELIM = ','
@@ -42,7 +37,7 @@ RETRY_INTERVAL = 5  # sec
 RETRIALS = 3
 
 #meta
-SCER_GENOME_LENGTH_PATH = '/Users/user/Dropbox/workspace/transeq_pipeline/data/sacCer3.sizes'
+SCER_GENOME_LENGTH_PATH = '/cs/wetlab/genomics/scer/genome/sacCer3.sizes'
 TTS_MAP = '/cs/wetlab/genomics/scer/annotations/weiner2015_tts.tsv'
 
 STRANDS = {'w': '+', 'c': '-'}

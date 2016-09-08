@@ -487,6 +487,7 @@ class MainHandler(object):
             self.create_dir_and_log(self.fastq_dir)
             self.create_dir_and_log(self.bam_dir)
             self.create_dir_and_log(self.bw_dir)
+            self.create_dir_and_log(self.tmp_dir)
             if self.keep_filtered:
                 self.filtered_dir = d + os.sep + FILTERED_NAME
                 self.create_dir_and_log(self.filtered_dir)
@@ -495,23 +496,27 @@ class MainHandler(object):
                 self.create_dir_and_log(self.unaligned_dir)
 
         if self.make_hub:
-            if self.www_dir is None: self.www_dir = self.exp
-            self.www_path = canonic_path('~/www/%s' % self.www_dir)
-
-        self.create_dir_and_log(self.tmp_dir)
+            if self.hub_name is None: self.hub_name = self.exp
+            self.www_rel = os.sep.join([getpass.getuser(), self.hub_name])
+            d = os.sep.join([WWW_PATH, getpass.getuser()])
+            self.create_dir_and_log(d, lg.INFO)
+            sp.call('chmod -R 777 %s' % d, shell=True)
+            d = os.sep.join([d, self.hub_name])
+            if os.path.isdir(d):
+                self.logger.log(lg.DEBUG, 'Removing old folder')
+                shutil.rmtree(d)
+            self.create_dir_and_log(d, lg.INFO)
+            sp.call('chmod -R 777 %s' % d, shell=True)
+            self.www_path = d
 
     def build_hub(self):
         self.logger.log(lg.INFO, 'Generating hub...')
-        if os.path.isdir(self.www_path):
-            self.logger.log(lg.DEBUG, 'Removing old folder')
-            shutil.rmtree(self.www_path)
-        self.create_dir_and_log(self.www_path)
         sacpath = self.www_path + os.path.sep + 'sacCer3'
         if not os.path.exists(sacpath): os.mkdir(sacpath)
         hubfile = open(self.www_path + os.path.sep + 'hub.txt', 'w')
-        hubfile.write('\n'.join(["hub %s" % self.exp,
-                                 "shortLabel %s" % self.exp,
-                                 "longLabel %s" % self.exp,
+        hubfile.write('\n'.join(["hub %s" % self.hub_name,
+                                 "shortLabel %s" % self.hub_name,
+                                 "longLabel %s(%s)" % (self.hub_name, self.exp),
                                  "genomesFile genomes.txt",
                                  "email %s" % self.hub_email]))
         genomesfile = open(self.www_path + os.path.sep + 'genomes.txt', 'w')
@@ -519,10 +524,8 @@ class MainHandler(object):
                           "trackDb sacCer3/trackDB.txt")
         trackfile = open(sacpath + os.path.sep + 'trackDB.txt', 'w')
         for s in self.samples.values():
-            wurl = os.sep.join([URL_BASE+getpass.getuser(), self.www_dir,
-                                self.bigwig_dirname, os.path.split(s.files['wbw'])[1]])
-            curl = os.sep.join([URL_BASE+getpass.getuser(), self.www_dir,
-                                self.bigwig_dirname, os.path.split(s.files['cbw'])[1]])
+            wurl = os.sep.join([URL_BASE, self.www_rel, os.path.split(s.files['wbw'])[1]])
+            curl = os.sep.join([URL_BASE, self.www_rel, os.path.split(s.files['cbw'])[1]])
             hdr = '\n'.join(['track %s' % s.base_name(),
                              'container multiWig',
                              'aggregate transparentOverlay',
@@ -559,7 +562,7 @@ class MainHandler(object):
             trackfile.write(wentry+'\n\n')
             trackfile.write(centry+'\n\n')
         trackfile.close()
-        mainurl = os.sep.join([URL_BASE+getpass.getuser(), self.www_dir, 'hub.txt'])
+        mainurl = os.sep.join([URL_BASE, self.www_rel, 'hub.txt'])
         new_path = self.www_path + os.sep + self.bigwig_dirname
         shutil.move(self.bw_dir, self.www_path)
         os.symlink(new_path, self.bw_dir, target_is_directory=True)
@@ -790,7 +793,7 @@ def build_parser():
                    help='prevent the pipeline from genrating a browser hub in your www folder')
     g.add_argument('--hub_email', '-he', action='store', default='noemail@nodomain.com',
                    help='the contact email for the generated hub')
-    g.add_argument('--www_dir', '-wd', action='store', default=None,
+    g.add_argument('--hub_name', '-hn', action='store', default=None,
                    help='the directory in which the hub is generated. If not given, '
                         'experiment name is used.')
 
@@ -905,6 +908,7 @@ def parse_args(p):
         args.__dict__['export_path'] = canonic_path(args.export_path)
 
     args.__dict__['count_window'] = [int(x) for x in args.count_window[1:-1].split(',')]
+
     return args
 
 
