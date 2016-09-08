@@ -104,7 +104,7 @@ class MatExporter(Exporter):
                             ' and then another one for the rows of each table. "r_" is a prefix for reshaped '
                             'data or respective legends',dtype=str)
         sio.savemat(fpath, {self.name: s})
-        return [self.name]
+        return [self.name+'.mat']
 
     @staticmethod
     def sample2arr(samples, features, rlg):
