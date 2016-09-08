@@ -138,12 +138,12 @@ class MainHandler(object):
             sf['tmp_bam'] = self.tmp_dir + os.sep + sample.base_name() + TMP_BAM_SUFF
             sf['sam_hdr'] = self.bam_dir + os.sep + sample.base_name() + SAM_HDR_SUFF
             sf['align_stats'] = self.tmp_dir + os.sep + sample.base_name() + BT_STATS_SUFF
-            if self.klac_index_path is not None:
-                sf['klac_align_stats'] = self.tmp_dir + os.sep + sample.base_name() + '.klac' + BT_STATS_SUFF
+            if self.other_index_path is not None:
+                sf['other_stats'] = self.tmp_dir + os.sep + sample.base_name() + '.other' + BT_STATS_SUFF
             if self.keep_unaligned:
                 sf['unaligned_bam'] = self.unaligned_dir + os.sep + sample.base_name() + '.bam'
             args = dict(files=sf, bowtie_exec=self.bowtie_exec, fpipe=self.fpipe,
-                        n_threads=self.n_threads, scer=self.scer_index_path, klac=self.klac_index_path)
+                        n_threads=self.n_threads, genome=self.genome_index_path, other=self.other_index_path)
             token_map[self.w_manager.run(make_bam, kwargs=args)] = sample
 
         while token_map:
@@ -162,13 +162,13 @@ class MainHandler(object):
 
         for f in os.listdir(self.tmp_dir):
             if not f.endswith(BT_STATS_SUFF): continue
-            is_klac = f.endswith('.klac'+BT_STATS_SUFF)
+            is_other = f.endswith('.other'+BT_STATS_SUFF)
             sample = f.split('.')[0]
             fpath = self.tmp_dir + os.sep + f
             with open(fpath) as F:
                 for line in F:
                     stat, cnt = line.strip().split('\t')
-                    stat += '_klac' if is_klac else ''
+                    stat += '_other' if is_other else ''
                     if stat not in self.stat_order: self.stat_order.append(stat)
                     self.stats[sample][stat] += int(cnt)
             os.remove(fpath)
@@ -748,11 +748,15 @@ def build_parser():
                         'R1/R2 reads are interleaved in this file.')
 
     g = p.add_argument_group('Alignment')
-    g.add_argument('--scer_index_path', '--sip', type=str, default='/cs/wetlab/genomics/scer/bowtie/sacCer3',
-                   help='path prefix of s. cervisae genome bowtie index')
-    g.add_argument('--klac_index_path', '-kip', type=str, default=None,
-                   help='If given, data is also aligned to k. lacis genome (can be found in '
+    g.add_argument('--genome_index_path', '-gip', type=str, default='/cs/wetlab/genomics/scer/bowtie/sacCer3',
+                   help='path prefix to bowtie genome index, default is'
+                        '/cs/wetlab/genomics/scer/bowtie/sacCer3 ')
+    g.add_argument('--other_index_path', '-oip', type=str, default=None,
+                   help='If given, data is also aligned to this genome (k. lactis can be found in '
                         '/cs/wetlab/genomics/klac/bowtie/genome)')
+    g.add_argument('--keep_other_genome', '-kog', action='store_true',
+                   help='whether alignment to other genome should also be kept, or just '
+                        'added to statistics (default)')
     g.add_argument('--n_threads', '-an', type=int, default=4,
                    help='number of threads used for alignment per bowtie instance')
     g.add_argument('--keep_unaligned', '-ku', action='store_true',

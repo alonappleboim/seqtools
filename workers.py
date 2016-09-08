@@ -66,7 +66,7 @@ def format_fastq(files, bc_len, umi_len):
     return None
 
 
-def make_bam(files, bowtie_exec, n_threads, scer, klac, fpipe):
+def make_bam(files, bowtie_exec, n_threads, genome, other, fpipe):
 
     def parse_bowtie_stats(bt_stats):
         # parse this output:
@@ -90,20 +90,20 @@ def make_bam(files, bowtie_exec, n_threads, scer, klac, fpipe):
                     Ns.append(m.group(1))
         return Ns
 
-    def klac_count():
+    def other_count():
         # align, and parse statistics
         # bowtie2 --local -p 4 -U {fastq.gz} -x {index} 2> {stats} >/dev/null
-        klacstats = files['klac_align_stats']
-        bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (bowtie_exec, n_threads, files['fastq'], klac)),
+        stats = files['other_stats']
+        bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (bowtie_exec, n_threads, files['fastq'], other)),
                       stderr=sp.PIPE, stdout=open(os.devnull, 'w'))
         Ns = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
-        with open(klacstats, 'w') as S:
-            S.write('unique-align\t%s' % Ns[2])
+        with open(stats, 'w') as S:
+            S.write('unique-align\t%s' % Ns[2]) #not thread safe!
 
-    if klac is not None:
-        ct = threading.Thread(target=klac_count)
+    if other is not None:
+        ct = threading.Thread(target=other_count)
         ct.start()
-    bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (bowtie_exec, n_threads, files['fastq'], scer)),
+    bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (bowtie_exec, n_threads, files['fastq'], genome)),
                   stdout=sp.PIPE, stderr=sp.PIPE)
     awkcmd = ''.join(("""awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN")""",
                       """{print $0 > "%s";} print; }' """)) % files['sam_hdr']
@@ -125,8 +125,8 @@ def make_bam(files, bowtie_exec, n_threads, scer, klac, fpipe):
                            'no-align\t%s' % Ns[1],
                            'unique-align\t%s' % Ns[2],
                            'multiple-align\t%s' % Ns[3]]))
-    if klac is not None:
-        ct.join()  # making sure lactis alignment is also complete
+    if other is not None:
+        ct.join()  # making sure other alignment is also complete
     n = fpipe.filter(files['unfiltered_bam'], files['bam'], files['sam_hdr'], files['bam_f'])
     os.remove(files['unfiltered_bam'])
     return n

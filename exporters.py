@@ -70,7 +70,7 @@ class MatExporter(Exporter):
     name = 'mat'
     description = 'export to a single matlab file'
     args = {'r': (bool, True, 'whether to include a multidimensional array version of the data'),
-            'name': (str, 'tts.mat', 'used as the file name and the matlab struct name.')}
+            'name': (str, 'tts', 'used as the file name and the matlab struct name.')}
 
     def export(self, features, samples, sample_stats):
         fpath = self.out_path + os.sep + self.name
@@ -99,7 +99,7 @@ class MatExporter(Exporter):
                 dtype = np.object if f.type is str else np.double
                 lg[f.name] = np.array(sorted(f.vals), dtype=dtype)
             r['lg'] = lg
-        s['r'] = r
+            s['r'] = r
         s['doc'] = np.array('"lg" is a short for "legend", there is a complex one ("lg") for the samples'
                             ' and then another one for the rows of each table. "r_" is a prefix for reshaped '
                             'data or respective legends',dtype=str)
