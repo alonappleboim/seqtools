@@ -6,25 +6,25 @@ Examples:
 ========
 
 basic:
-    python /cs/bd/TranSEQ/transeq_pipeline/run.py -fp /my/fastq/path/
+    python /cs/bd/TranSEQ/transeq_pipeline/run.py /my/fastq/path/
 
-with k.lac alignemnt:
-    python /cs/bd/TranSEQ/transeq_pipeline/run.py -fp /my/fastq/path/ -kip /cs/wetlab/genomics/klac/bowtie/genome
+with k.lac alignemnt statistics:
+    python /cs/bd/TranSEQ/transeq_pipeline/run.py /my/fastq/path/ -cip klactis:/cs/wetlab/genomics/klac/bowtie/genome
 
-debugging pipeline (recommended before long runs, in this case runs on only 1e5 reads and 10 samples):
-    python ~/Dropbox/workspace/transeq_pipeline/run.py -fp /my/fastq/path/ -d 100000,10
+debugging pipeline (recommended before big runs, in this case runs on only 1e5 reads and 10 samples):
+    python ~/Dropbox/workspace/transeq_pipeline/run.py /my/fastq/path/ -d 100000,10
 
-reporting stuff to your email:
-    python ~/Dropbox/workspace/transeq_pipeline/run.py -fp /my/fastq/path/ -ue email1@some.domain,email2@same.domain
+reporting stuff to your email(s):
+    python ~/Dropbox/workspace/transeq_pipeline/run.py /my/fastq/path/ -ue email1@some.domain,email2@same.domain
 
 saving results to a specified path:
-    python ~/Dropbox/workspace/transeq_pipeline/run.py -fp /my/fastq/path/ -ep ~/Dropbox/transeq_stats/
+    python ~/Dropbox/workspace/transeq_pipeline/run.py /my/fastq/path/ -ep ~/Dropbox/transeq_stats/
 
 keeping unaligned reads:
-    python ~/Dropbox/workspace/transeq_pipeline/run.py -fp /my/fastq/path/ -ku
+    python ~/Dropbox/workspace/transeq_pipeline/run.py /my/fastq/path/ -ku
 
-keeping filteres, unaligned, and no-barcode reads:
-    python ~/Dropbox/workspace/transeq_pipeline/run.py -fp /my/fastq/path/ -kf -ku -knb
+keeping filtered, unaligned, and no-barcode reads:
+    python ~/Dropbox/workspace/transeq_pipeline/run.py /my/fastq/path/ -kf -ku -knb
 
 restarting from fastq stage - TODO: CURRENTLY Not working!
     python ~/Dropbox/workspace/transeq_pipeline/run.py -fp /previous/transeq/results/path/ -sa FASTQ
@@ -32,12 +32,10 @@ restarting from fastq stage - TODO: CURRENTLY Not working!
 
 More Info:
 =========
-
 The implementation tries to use parallelization and efficient implementations
 (i.e. heavylifting is not pythonic) as much as possible. The basic idea is to
 split the work to samples, which are (mostly) independent, and collect all
 results at the end.
-
 
 The workflow is:
  parsing inputs and pre-processing
@@ -45,33 +43,22 @@ The workflow is:
     pre-processing steps - generating folders, making sure executables exist etc.
 
  splitting barcodes
-    First pass with awk to make a file for every exact barcode match in the data.
-    Quick and (very) dirty.
-    Second pass again with awk to collect sequences with upto a specificd hamming distance from barcodes.
-    The output is written to the temp_dir and is not in fastq format.
-    There's an optional output file for no-barcode reads.
+    First pass with awk to make a file for every exact barcode match in the data. Quick and dirty.
+    Second pass again with awk to collect sequences with upto a specified hamming distance from barcodes.
+    The output is written to the tmp dir and is NOT in fastq format.
+    There's an optional output file for no-barcode reads (-knb option).
 
- Writing fastq files
-    Next, a process is generated per sample, that transforms the previous stage output into regular gzipped fastq
-    files.
+ Next, a process is generated per sample that:
+    - Transforms the previous stage output into regular gzipped fastq files.
+    - Aligns reads to genome. Only aligned reads are further reported, an optional "unaligend" folder can be generated
+      to hold all unaligned reads for further inspection (-ku option).
+    - Filters reads according to specified filters (-F option). An optional "filtered" folder can be generated
+      to hold all filtered reads for further inspection (-kf option).
+    - If a count_index_paths (-cip) option is specified, the reads are also aligned to given genomes, and only
+      statistics are reported (e.g. lactis alignment, human alignment for contamination, etc.).
+    - Generates strand-specific bigwig tracks per sample (.c.bw, and .w.bw).
+    - For the given tts file, and specified window, reads are counted and reported per tts per sample.
 
- Alignment
-    Each sample aligns reads to genome in an independent process. If a klac genome is specified, reads are also
-    aligned to that genome (assumed to be klac) #TODO: change this to an arbitrary genome
-    Only aligned reads are further reported, an optional "unaligend" folder can be generated to hold all unaligned
-    reads for further inspection.
-
- Filtering
-    The bam output from the alignment is filtered, and only those reads that pass the all the filters are written
-    to the BAM folder. an optional "filtered" folder can be generated that holds all filtered reads in BAM format.
-    The reads that passed filtration are now sorted and indexed .bam files in the BAM folder.
-
- Track generation
-    Each bam file generates 2 bigwig files in the BIGWIG folder, one per strand (.c.bw, and .w.bw)
-
- Counting
-    For the given annotation file, and specified window, reads are counted and reported per annotation per sample.
-
- Exporting
-    Each specified exporter exports the overall statistics and counts in a specific format to optional specific
-    locations
+ Finally, when all samples are done with sample-specific processing, the main process creates a hub (or not,
+ -nh option), transfers the bigwig files to that location, and generates a link in the experiment output folder.
+ Also the statistics and tts counts are exported to specified formats (-E option) in specified locations (-ep option)

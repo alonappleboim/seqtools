@@ -25,7 +25,7 @@ if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
     exit()
 
-from workers import *
+from work import *
 from utils import *
 from filters import *
 
