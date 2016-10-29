@@ -1,3 +1,14 @@
+'''
+This module abstracts usage of a slurm cluster. Usage:
+---
+import slurm
+def f(x,y): sum(i in range(x*y))
+print(55==slurm.execute(f, args=(2,5))) # True!
+---
+It's also possible to pass key-word arguments to f.
+CRITICAL: if f uses any non built-in modules, they must be imported within f
+''' #TODO: change this...
+
 import dill
 import sys
 import subprocess as sp
@@ -43,7 +54,10 @@ def execute(f, args, kwargs, slurm_spec, interval=.1):
                 break
 
     # handle function output and cleanup
-    with open(pkl_output(id), 'rb') as IN: out, err = dill.load(IN)
+    try:
+        with open(pkl_output(id), 'rb') as IN: out, err = dill.load(IN)
+    except IOError:
+        with open('slurm-%s.out' % jid) as LOG: err = 'slurm error: \n %s' % LOG.read()
     os.remove(tmpscript)
     os.remove(pkl_output(id))
     os.remove(pkl_args(id))

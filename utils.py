@@ -1,3 +1,4 @@
+import shlex as sh
 from collections import OrderedDict
 import getpass
 import datetime
@@ -33,18 +34,18 @@ def buff_lines(buffer, buf_size=1024):
 def create_dir(path, chto='770'):
     if not os.path.exists(path):
         os.mkdir(path)
-        sp.call('chmod -R %s %s' % (chto, path), shell=True)
+        sp.Popen(sh.split('chmod -R %s %s' % (chto, path)), stderr=sp.PIPE).communicate()
 
 
-def get_logfile(string=''):
+def get_logfile():
     now = datetime.datetime.now()
     p = LOG_PATH + os.sep + str(now.year)
     create_dir(p)
-    sp.call('chmod -R 770 %s' % p, shell=True)
+    sp.Popen(sh.split('chmod -R 770 %s' % p), stderr=sp.PIPE).communicate()
     p += os.sep + str(now.month)
     create_dir(p)
-    sp.call('chmod -R 770 %s' % p, shell=True)
-    fname = '%s-%i-%ih%im%s-%s' % (getpass.getuser(), now.day, now.hour, now.minute, now.second, string)
+    sp.Popen(sh.split('chmod -R 770 %s' % p), stderr=sp.PIPE).communicate()
+    fname = '%s-%i-%ih%im%s' % (getpass.getuser(), now.day, now.hour, now.minute, now.second)
     return p + os.sep + fname
 
 

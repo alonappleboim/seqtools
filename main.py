@@ -861,7 +861,8 @@ def build_parser():
     g.add_argument('--dont_bound_start', '-dbs', action='store_false',
                    help='do not limit counting window orf start (i.e. if longer than ORF, trim counting window)')
     g.add_argument('--count_window', '-cw', type=str, default='[-750,250]',
-                   help='Comma separated limits for tts counting, relative to annotation TTS. default=-100,500')
+                   help='Comma separated limits for tts counting, relative to annotation TTS (negative is upastream). '
+                        '[-750,250] is the default.')
 
     g = p.add_argument_group('Export')
     g.add_argument('--exporters', '-E', action='store',
