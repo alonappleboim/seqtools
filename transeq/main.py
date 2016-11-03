@@ -1,5 +1,9 @@
-from config import *
 import sys
+import os
+
+project_dir = os.path.sep.join(sys.modules[__name__].__file__.split(os.path.sep)[:-2])
+sys.path.append(project_dir)
+from common.config import *
 
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     import subprocess as sp
@@ -18,11 +22,11 @@ import pickle
 import shutil
 from collections import Counter
 
-from exporters import *
-from filters import *
-from manage import WorkManager
-from secure_smtp import ThreadedTlsSMTPHandler
-from utils import *
+from transeq.exporters import *
+from transeq.filters import *
+from transeq.manage import WorkManager
+from transeq.secure_smtp import ThreadedTlsSMTPHandler
+from transeq.utils import *
 
 
 class FeatureCollection(OrderedDict):
@@ -103,7 +107,7 @@ class Sample(object):
     def critical(self, msg, err, countq):
         msg += '\n' + err
         self.context.logq.put((lg.CRITICAL, msg))
-        countq.put((self.barcode, countq))
+        countq.put((self.barcode, {}))
         exit()
 
     def handle(self, in_files, tts_file, countq):
@@ -194,7 +198,7 @@ class Sample(object):
         # align, and parse statistics
         # bowtie2 --local -p 4 -U {fastq.gz} -x {index} 2> {stats} >/dev/null
         import shlex as sh
-        from utils import parse_bowtie_stats
+        from transeq.utils import parse_bowtie_stats
         stats = {}
         for genome, index in genome_indices:
             bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], index)),
@@ -207,7 +211,7 @@ class Sample(object):
     @staticmethod
     def make_bam(files, n_threads, genome_index, fpipe):
         import shlex as sh
-        from utils import parse_bowtie_stats
+        from transeq.utils import parse_bowtie_stats
         bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], genome_index)),
                       stdout=sp.PIPE, stderr=sp.PIPE)
         awkcmd = ''.join(("""awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN")""",
@@ -343,6 +347,7 @@ class ExperimentHandler(object):
         for s in self.samples.values(): stats[s.base_name()] = Counter()
         stats[NO_BC_NAME] = Counter()
         for sname, counter in iter(sq.get, None):
+            if not counter: continue
             for k in counter.keys():
                 if k not in stat_order: stat_order.append(k)
             stats[sname] += counter

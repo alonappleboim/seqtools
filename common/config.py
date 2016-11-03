@@ -1,8 +1,8 @@
 INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 
 # paths
-DATA_PATH = '/cs/bd/SequencingData/TranSEQ/'
-LOG_PATH = '/cs/bd/TranSEQ/logs'
+DATA_PATH = '/cs/bd/SequencingData/RNA/'
+LOG_PATH = '/cs/bd/logs'
 LOCAL_BIN = '/cs/bd/tools/'
 URL_BASE = 'http://www.cs.huji.ac.il/labs/nirf/track_hubs'
 WWW_PATH = '/cs/bd/track_hubs'
@@ -37,9 +37,9 @@ EXEC = {
     'BG2W': '/cs/bd/tools/bedGraphToBigWig'
 }
 
-#error handling
-RETRY_INTERVAL = 5  # sec
-RETRIALS = 3
+# #error handling
+# RETRY_INTERVAL = 5  # sec
+# RETRIALS = 3
 
 #meta
 SCER_GENOME_LENGTH_PATH = '/cs/wetlab/genomics/scer/genome/sacCer3.sizes'

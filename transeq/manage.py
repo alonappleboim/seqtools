@@ -1,5 +1,3 @@
-from config import *
-
 # if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
 #     import subprocess as sp
 #     import os
@@ -7,19 +5,17 @@ from config import *
 #     sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
 #     exit()
 
-import sys
-import multiprocessing as mp
-import subprocess as sp
+import functools
 import inspect
-import dill
-import os
-from queue import Empty
+import multiprocessing as mp
+import sys
 import threading
 import traceback
-import shlex as sh
-import inspect
-import functools
-import slurm
+from queue import Empty
+
+import dill
+
+from common import slurm
 
 
 def dict_annotated_function(default_setter=None):

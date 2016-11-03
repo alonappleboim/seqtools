@@ -1,15 +1,11 @@
-import getpass
-from collections import OrderedDict
-import subprocess as sp
-import threading as th
-import logging as lg
-import multiprocessing as mp
-import shlex as sh
 import datetime
+import getpass
 import os
 import re
-from config import *
-from config import SCER_GENOME_LENGTH_PATH as SGLP
+import shlex as sh
+import subprocess as sp
+
+from common.config import *
 
 ERROR = -1
 BEGIN = 0

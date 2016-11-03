@@ -7,10 +7,11 @@ import stat
 from collections import Counter
 
 from exporters import *
-from filters import *
-from obselete.workers import *
 from secure_smtp import ThreadedTlsSMTPHandler
 from utils import *
+
+from obselete.workers import *
+from transeq.filters import *
 
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     import subprocess as sp

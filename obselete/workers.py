@@ -1,14 +1,14 @@
-from collections import OrderedDict
-import os
-import subprocess as sp
 import multiprocessing as mp
-import shlex as sh
+import os
 import re
+import shlex as sh
+import subprocess as sp
 import threading
 import traceback
+from collections import OrderedDict
 
-from config import *
-from config import SCER_GENOME_LENGTH_PATH as SGLP
+from common.config import *
+from common.config import SCER_GENOME_LENGTH_PATH as SGLP
 
 MAX_TRIALS = 3
 

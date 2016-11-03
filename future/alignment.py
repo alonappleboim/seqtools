@@ -4,8 +4,7 @@ import shlex as sh
 import subprocess as sp
 from collections import OrderedDict
 
-
-from config import BOWTIE_EXEC, SAMTOOLS_EXEC
+from common.config import BOWTIE_EXEC, SAMTOOLS_EXEC
 
 
 def parse_bowtie_stats(bt_stats):

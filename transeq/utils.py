@@ -1,12 +1,11 @@
-import shlex as sh
-from collections import OrderedDict
-import getpass
 import datetime
+import getpass
 import os
-import sys
-import subprocess as sp
 import re
-from config import *
+import shlex as sh
+import subprocess as sp
+
+from common.config import *
 
 
 def chr_lengths():

@@ -9,14 +9,23 @@ It's also possible to pass key-word arguments to f.
 CRITICAL: if f uses any non built-in modules, they must be imported within f
 ''' #TODO: change this...
 
-import dill
-import sys
-import subprocess as sp
-from config import *
 import os
+import sys
+
+project_dir = os.path.sep.join(sys.modules[__name__].__file__.split(os.path.sep)[:-2])
+sys.path.append(project_dir)
+from common.config import *
+
+import time
 import shlex as sh
+import subprocess as sp
+import sys
 import traceback
 
+import dill
+
+
+RESPONSE_TIME = .25 # sec
 
 def pkl_args(id):
     return '.%s.pkl.args' % id
@@ -30,6 +39,7 @@ def execute(f, args, kwargs, slurm_spec, interval=.1):
     # prepare python input
     execblob = (f, args, kwargs)
     id = hash(str(execblob))
+    id = id ** 2
     with open(pkl_args(id), 'wb') as OUT: dill.dump(execblob, OUT)
 
     # sbatch script
@@ -43,15 +53,17 @@ def execute(f, args, kwargs, slurm_spec, interval=.1):
     p = sp.Popen(sh.split('sbatch %s %s' % (opts, tmpscript)), stderr=sp.PIPE, stdout=sp.PIPE)
     out, err = p.communicate()
 
-    # monitor until done
+    # monitor until done and file is available
     jid, done = out.decode('utf8').strip().split(' ')[-1], False
     while not done:
+        time.sleep(RESPONSE_TIME)
         q = sp.Popen("squeue",stdout=sp.PIPE).communicate()[0].decode('utf8').split('\n')
         done = True
         for line in q:
             if line.strip().split(' ')[0] == jid:
                 done = False
                 break
+    while not os.path.isfile(pkl_output(id)): time.sleep(RESPONSE_TIME)
 
     # handle function output and cleanup
     try:

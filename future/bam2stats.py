@@ -5,7 +5,7 @@ generate a corresponding multidimensional matlab file.
 from work import *
 
 from future.reshape_bam import *
-from utils import *
+from transeq.utils import *
 
 
 class MainHandler(object):

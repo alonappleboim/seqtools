@@ -2,23 +2,11 @@
 This script performs the preprocessing steps and starts a dedicated process for every sample.
  """
 
-
-from collections import Counter
-import getpass
-import csv
-import re
-from secure_smtp import ThreadedTlsSMTPHandler
-import logging as lg
-import argparse
 import os
-import sys
-import datetime
-import multiprocessing as mp
 import subprocess as sp
-import shlex as sh
-import shutil
+import sys
 
-from config import *
+from common.config import *
 
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     scriptpath = os.path.abspath(sys.modules[__name__].__file__)
@@ -26,8 +14,7 @@ if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     exit()
 
 from work import *
-from utils import *
-from filters import *
+from transeq.filters import *
 
 
 class Aspect(object):

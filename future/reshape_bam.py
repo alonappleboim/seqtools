@@ -3,14 +3,15 @@ Reads a [chr,pos,strand] file (from stdin) and outputs read statistics per entry
 specified format in command line arguments.
 """
 
-from abc import ABCMeta, abstractmethod
-import pysam
-import os
 import argparse
+import os
+from abc import ABCMeta, abstractmethod
+
 import numpy as np
+import pysam
 import scipy.io as sio
-from config import *
-from utils import chr_lengths
+
+from transeq.utils import chr_lengths
 
 MAX_INSERT = 1001
 
