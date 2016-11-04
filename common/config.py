@@ -1,7 +1,7 @@
 INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 
 # paths
-DATA_PATH = '/cs/bd/SequencingData/RNA/'
+DATA_PATH = '/cs/bd/SequencingData/'
 LOG_PATH = '/cs/bd/logs'
 LOCAL_BIN = '/cs/bd/tools/'
 URL_BASE = 'http://www.cs.huji.ac.il/labs/nirf/track_hubs'
@@ -36,6 +36,30 @@ EXEC = {
     'SLURM': 'sbatch',
     'BG2W': '/cs/bd/tools/bedGraphToBigWig'
 }
+
+#meta
+COMMON_GENOMES = {'SCER':
+                      {
+                          'assembly': 'sacCer3',
+                          'bowtie_index': '/cs/wetlab/genomics/scer/bowtie/sacCer3',
+                          'chrlens': '/cs/wetlab/genomics/scer/genome/sacCer3.sizes',
+                          'annots':
+                              {
+                                  'tss': '/cs/wetlab/genomics/scer/annotations/weiner2015_tss.tsv',
+                                  'tts': '/cs/wetlab/genomics/scer/annotations/weiner2015_tts.tsv'
+                              }
+                      },
+                  'KLAC':
+                      {
+                          'bowtie_index': '/cs/wetlab/genomics/klac/bowtie/genome',
+                          'chrlens': '/cs/wetlab/genomics/klac/genome/xxx',
+                          'annots':
+                              {
+                                  'tss': '/cs/wetlab/genomics/scer/annotations/xx.tsv',
+                                  'tts': '/cs/wetlab/genomics/scer/annotations/xx.tsv'
+                              }
+                       }
+                  }
 
 # #error handling
 # RETRY_INTERVAL = 5  # sec

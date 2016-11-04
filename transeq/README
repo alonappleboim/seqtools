@@ -6,28 +6,28 @@ Examples:
 ========
 
 basic:
-    python /cs/bd/seqtools/transeq/main.py /my/fastq/path/
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/
 
 with k.lac alignemnt statistics:
-    python /cs/bd/tools/seqtools/transeq/run.py /my/fastq/path/ -cip klactis:/cs/wetlab/genomics/klac/bowtie/genome
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/ -cip klactis:/cs/wetlab/genomics/klac/bowtie/genome
 
 debugging pipeline (recommended before big runs, in this case runs on only 1e5 reads and 10 samples):
-    python ~/Dropbox/workspace/transeq_pipeline/main.py /my/fastq/path/ -d 100000,10
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/ -d 100000,10
 
 reporting stuff to your email(s):
-    python ~/Dropbox/workspace/transeq_pipeline/main.py /my/fastq/path/ -ue email1@some.domain,email2@same.domain
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/ -ue email1@some.domain,email2@same.domain
 
 saving results to a specified path:
-    python ~/Dropbox/workspace/transeq_pipeline/main.py /my/fastq/path/ -ep ~/Dropbox/transeq_stats/
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/ -ep ~/Dropbox/transeq_stats/
 
 keeping unaligned reads:
-    python ~/Dropbox/workspace/transeq_pipeline/main.py /my/fastq/path/ -ku
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/ -ku
 
 keeping filtered, unaligned, and no-barcode reads:
-    python ~/Dropbox/workspace/transeq_pipeline/main.py /my/fastq/path/ -kf -ku -knb
+    python /cs/bd/tools/seqtools/transeq/main.py /my/fastq/path/ -kf -ku -knb
 
 restarting from fastq stage - TODO: CURRENTLY Not working!
-    python ~/Dropbox/workspace/transeq_pipeline/main.py -fp /previous/transeq/results/path/ -sa FASTQ
+    python /cs/bd/tools/seqtools/transeq/main.py -fp /previous/transeq/results/path/ -sa FASTQ
 
 
 More Info:
