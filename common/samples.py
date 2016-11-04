@@ -78,6 +78,7 @@ class Sample(object):
     def handle(self, in_files, *args, **kwargs):
         pass
 
+
 class TranseqSample(Sample):
 
     def __init__(self, context):

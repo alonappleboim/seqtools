@@ -600,7 +600,7 @@ class ExperimentHandler(object):
             self.www_path = d
 
     def split_barcodes(self, no_bc=None):
-        #
+        # TODO: make this slurm executed code
         #  first - compile awk scripts that will split input according to barcodes,
         # then use them with some smart pasting. For each input pair:
         # paste <(zcat {R1}) <(zcat {R2}) |\ %paste both files one next to the other

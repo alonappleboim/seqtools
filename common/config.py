@@ -66,7 +66,6 @@ COMMON_GENOMES = {'SCER':
 # RETRIALS = 3
 
 #meta
-SCER_GENOME_LENGTH_PATH = '/cs/wetlab/genomics/scer/genome/sacCer3.sizes'
 TTS_MAP = '/cs/wetlab/genomics/scer/annotations/weiner2015_tts.tsv'
 
 STRANDS = {'w': '+', 'c': '-'}

@@ -25,8 +25,6 @@ import traceback
 import dill
 
 
-RESPONSE_TIME = .25 # sec
-
 def pkl_args(id):
     return '.%s.pkl.args' % id
 
@@ -35,7 +33,7 @@ def pkl_output(id):
     return '.%s.pkl.out' % id
 
 
-def execute(f, args, kwargs, slurm_spec, interval=.1):
+def execute(f, args, kwargs, slurm_spec, interval=.2):
     # prepare python input
     execblob = (f, args, kwargs)
     id = hash(str(execblob))
@@ -56,20 +54,26 @@ def execute(f, args, kwargs, slurm_spec, interval=.1):
     # monitor until done and file is available
     jid, done = out.decode('utf8').strip().split(' ')[-1], False
     while not done:
-        time.sleep(RESPONSE_TIME)
+        time.sleep(interval)
         q = sp.Popen("squeue",stdout=sp.PIPE).communicate()[0].decode('utf8').split('\n')
         done = True
         for line in q:
             if line.strip().split(' ')[0] == jid:
                 done = False
                 break
-    while not os.path.isfile(pkl_output(id)): time.sleep(RESPONSE_TIME)
+    err = None
+    while not os.path.isfile(pkl_output(id)):
+        try:
+            with open('slurm-%s.out' % jid) as LOG: log = LOG.read().strip()
+            if log: err = 'slurm error: \n %s' % log
+        except IOError: pass
+        if err: break
+        # print('waiting for response for job %s' % jid)
+        time.sleep(interval)
 
-    # handle function output and cleanup
-    try:
+    if err is None:
         with open(pkl_output(id), 'rb') as IN: out, err = dill.load(IN)
-    except IOError:
-        with open('slurm-%s.out' % jid) as LOG: err = 'slurm error: \n %s' % LOG.read()
+
     os.remove(tmpscript)
     os.remove(pkl_output(id))
     os.remove(pkl_args(id))

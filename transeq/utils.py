@@ -10,7 +10,7 @@ from common.config import *
 
 def chr_lengths():
     cl = {}
-    with open(SCER_GENOME_LENGTH_PATH) as cl_file:
+    with open(COMMON_GENOMES['SCER']['chrlens']) as cl_file:
         for line in cl_file:
             c, l = line.strip().split('\t')
             cl[c] = int(l)
