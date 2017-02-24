@@ -71,6 +71,7 @@ TTS_MAP = '/cs/wetlab/genomics/scer/annotations/weiner2015_tts.tsv'
 STRANDS = {'w': '+', 'c': '-'}
 
 SAMPLEDB_DELIM = ','
+ANNOT_DELIM = '\t'
 
 def check_third_party():
     """

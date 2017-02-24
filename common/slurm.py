@@ -33,7 +33,8 @@ def pkl_output(id):
     return '.%s.pkl.out' % id
 
 
-def execute(f, args, kwargs, slurm_spec, interval=.2):
+def execute(f, args, kwargs, slurm_spec, interval=.2, tmp_path=None):
+    if tmp_path is None: tmp_path = '.'
     # prepare python input
     execblob = (f, args, kwargs)
     id = hash(str(execblob))
@@ -41,14 +42,18 @@ def execute(f, args, kwargs, slurm_spec, interval=.2):
     with open(pkl_args(id), 'wb') as OUT: dill.dump(execblob, OUT)
 
     # sbatch script
-    tmpscript = '.%s.slurmscript' % id
+    tmpscript = '%s%s.%s.slurmscript' % (tmp_path, os.path.sep, id)
     with open(tmpscript, 'w') as script:
         script.write('#! /bin/bash \n')
         script.write('%s %s %s\n' % (INTERPRETER, __file__, id))
 
+    scriptout = '%s%s.%s.slurmout' % (tmp_path, os.path.sep, id)
+
     # execute
     opts = ' '.join('--%s=%s' % (k,str(v)) for k,v in slurm_spec.items())
-    p = sp.Popen(sh.split('sbatch %s %s' % (opts, tmpscript)), stderr=sp.PIPE, stdout=sp.PIPE)
+    command = 'sbatch %s %s --output=%s' % (opts, tmpscript, scriptout)
+    print(command)
+    p = sp.Popen(sh.split(command), stderr=sp.PIPE, stdout=sp.PIPE)
     out, err = p.communicate()
 
     # monitor until done and file is available
@@ -61,10 +66,11 @@ def execute(f, args, kwargs, slurm_spec, interval=.2):
             if line.strip().split(' ')[0] == jid:
                 done = False
                 break
+
     err = None
     while not os.path.isfile(pkl_output(id)):
         try:
-            with open('slurm-%s.out' % jid) as LOG: log = LOG.read().strip()
+            with open(scriptout) as LOG: log = LOG.read().strip()
             if log: err = 'slurm error: \n %s' % log
         except IOError: pass
         if err: break

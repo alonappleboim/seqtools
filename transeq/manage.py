@@ -114,7 +114,7 @@ class WorkManager(object):
             while len(roster) < self.max_w and tasks:
                 slurm_spec, func, args, kwargs, c = dill.loads(tasks.pop())
                 w = mp.Process(target=self.exec_wrapper,
-                               args=(func, args, kwargs, c, intercom, wid, slurm_spec))
+                               args=(func, args, kwargs, c, intercom, wid, slurm_spec, self.tmp_path))
                 w.start()
                 roster[wid] = w
                 wid += 1
@@ -132,8 +132,9 @@ class WorkManager(object):
                 except Empty: break
         self.work.put(None)
 
-    def __init__(self, max_w=sys.maxsize, delay=.01, default_slurm_spec=None):
+    def __init__(self, max_w=sys.maxsize, delay=.01, default_slurm_spec=None, tmp_path=None):
         self.manager = mp.Manager()
+        self.tmp_path = tmp_path
         self.work = self.get_channel()
         self.default_slurm_spec = default_slurm_spec
         self.max_w = max_w
@@ -158,10 +159,10 @@ class WorkManager(object):
         self.work.put(dill.dumps((slurm_spec, func, args, kwargs, c)))
 
     @staticmethod
-    def exec_wrapper(f, args, kwargs, c, intercom, wid, slurm_spec):
+    def exec_wrapper(f, args, kwargs, c, intercom, wid, slurm_spec, tmp_path=None):
         err = None  # benefit of the doubt
         try:
-            if slurm_spec is not None: out = slurm.execute(f, args, kwargs, slurm_spec)
+            if slurm_spec is not None: out = slurm.execute(f, args, kwargs, slurm_spec, tmp_path=tmp_path)
             else: out = f(*args, **kwargs)
         except Exception:
             out, err = None, traceback.format_exc(10)

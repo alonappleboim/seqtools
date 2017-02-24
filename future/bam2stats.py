@@ -4,8 +4,8 @@ generate a corresponding multidimensional matlab file.
 """
 from work import *
 
+from common.utils import *
 from future.reshape_bam import *
-from transeq.utils import *
 
 
 class MainHandler(object):

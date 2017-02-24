@@ -5,18 +5,46 @@ specified format in command line arguments.
 
 import argparse
 import os
+import sys
 from abc import ABCMeta, abstractmethod
+
+project_dir = os.path.sep.join(sys.modules[__name__].__file__.split(os.path.sep)[:-2])
+sys.path.append(project_dir)
+
+from common.config import *
+
+if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
+    import subprocess as sp
+    import os
+    scriptpath = os.path.abspath(sys.modules[__name__].__file__)
+    sp.Popen([INTERPRETER, scriptpath] + sys.argv[1:]).wait()
+    exit()
 
 import numpy as np
 import pysam
 import scipy.io as sio
 
-from transeq.utils import chr_lengths
+from common.utils import chr_lengths
 
 MAX_INSERT = 1001
 
 
-class ReadTransform(object):
+class Segment(object):
+
+    def __init__(self, r, should_pair=False, afile=None):
+        if should_pair:
+            rr = afile.mate(r)
+            self.fr = min(r.reference_start, rr.reference_start)
+            self.to = max(r.reference_end, rr.reference_end)
+        else:
+            self.fr = r.reference_start
+            self.to = r.reference_end
+
+    def __len__(self):
+        return self.to - self.fr
+
+
+class SegmentTransform(object):
     __metaclass__ = ABCMeta
 
     name = None
@@ -27,56 +55,57 @@ class ReadTransform(object):
         self.__dict__.update(kwargs)
 
     @abstractmethod
-    def transform(self, r): pass
+    def transform(self, s): pass
 
     def __call__(self, *args, **kwargs):
         return self.transform(*args, **kwargs)
 
 
-class Step(ReadTransform):
+class Step(SegmentTransform):
     name = 'step'
-    args = {'w': (int, 2, 'half-width to extend from center (to each side)')}
+    args = {'w': (int, 1, 'half-width to extend from center (to each side)')}
     desc = 'step function around read center'
 
-    def transform(self, r):
-        t = np.zeros(r.reference_length)
-        c = round(r.reference_length / 2)
-        t[max(0,c-self.w):min(c+self.w,r.reference_length)] = 1
+    def transform(self, s):
+        l = len(s)
+        t = np.zeros(l)
+        c = round(l/2)
+        t[max(0,c-self.w):min(c+self.w,l)] = 1
         return t
 
 
-class Coverage(ReadTransform):
+class Coverage(SegmentTransform):
     name = 'cov'
     args = {}
     desc = 'uniform 1 coverage'
 
-    def transform(self, r):
-        return np.ones(r.reference_length)
+    def transform(self, s):
+        return np.ones(len(s))
 
 
-class FivePrime(ReadTransform):
+class FivePrime(SegmentTransform):
     name = '5p'
     args = {}
     desc = "indicator at read start (5')"
 
-    def transform(self, r):
-        t = np.zeros(r.reference_length)
+    def transform(self, s):
+        t = np.zeros(len(s))
         t[0] = 1
         return t
 
 
-class ThreePrime(ReadTransform):
+class ThreePrime(SegmentTransform):
     name = '3p'
     args = {}
     desc = "indicator at read end (3')"
 
-    def transform(self, r):
-        t = np.zeros(r.reference_length)
+    def transform(self, s):
+        t = np.zeros(len(s))
         t[-1] = 1
         return t
 
 
-class Spike(ReadTransform):
+class Spike(SegmentTransform):
     name = 'spike'
     args = {'a': (float, 5, 'the steepness of the pike, the higher the more spiky the transform')}
     desc = "a concave spike at the read center"
@@ -85,42 +114,77 @@ class Spike(ReadTransform):
         super(Spike, self).__init__(**kwargs)
         self.halfspike = 1 / (np.array(range(1,round(MAX_INSERT/2)+1)) ** self.a)
 
-    def transform(self, r):
-        rl = r.reference_length
-        h1 = self.halfspike[:round(rl/2)]
-        if rl % 2 == 0:
+    def transform(self, s):
+        sl = len(s)
+        h1 = self.halfspike[:round(sl/2)]
+        if sl % 2 == 0:
             t = np.hstack((h1[::-1], h1))
         else:
             t = np.hstack((h1[::-1], h1[1], h1))
         return t
 
 
-def reshape(bam_path, annot_file, transform, out_name, output_file, w=[-500,250], delim='\t'):
+def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250]):
     bam_in = pysam.AlignmentFile(bam_path)
     chrlens = chr_lengths()
     vectors = []
+    annot = []
     for line in annot_file:
-        chr, pos, strand = line.strip().split(delim)[:2]
+        id, chr, pos, strand = line.strip().split(ANNOT_DELIM)
+        annot.append(id)
         pos, strand = int(pos), (-1) ** (1 - (strand == '+'))
         is_rev = strand == -1
-        fr, to = [pos + strand*x for x in w[::strand]]
+        fr, to = [pos + strand*x for x in win[::strand]]
         fd = abs(min(0, fr))  # >0 only in case that reached end of chromosome
         fr, to = max(0, fr), min(to, chrlens[chr])
-        w = np.zeros(w[1] - w[0]+1)
+        w = np.zeros(win[1] - win[0]+1)
         wl = len(w)
         for r in bam_in.fetch(chr, fr, to):
             if r.is_reverse == is_rev:
-                add = transform(r)
+                s = Segment(r)
+                add = transform(s)
                 if is_rev: add = add = add[::-1]
                 if strand == 1:
-                    wfr, wto = r.reference_start - fr, r.reference_end - fr
+                    wfr, wto = s.fr - fr, s.to - fr
                 else:
-                    wfr, wto = to - r.reference_end, to - r.reference_start
-                rfr, rto = abs(min(wfr, 0)), r.reference_length - abs(min(len(w) - wto, 0))
+                    wfr, wto = to - s.to, to - s.fr
+                sfr, sto = abs(min(wfr, 0)), len(s) - abs(min(len(w) - wto, 0))
                 wfr, wto = max(0, wfr), min(wto, wl)
-                w[fd+wfr:fd+wto] += add[rfr:rto]
+                w[fd+wfr:fd+wto] += add[sfr:sto]
         vectors.append(w)
-    s = {'d': np.vstack(vectors), 'w': w}
+    s = {'d': np.vstack(vectors), 'w': w, 'l': annot}
+    sio.savemat(output_file, {out_name: s})
+
+
+def paired_reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250]):
+    bam_in = pysam.AlignmentFile(bam_path)
+    chrlens = chr_lengths()
+    vectors = []
+    annot = []
+    for line in annot_file:
+        id, chr, pos, strand = line.strip().split(ANNOT_DELIM)
+        annot.append(id)
+        pos, strand = int(pos), (-1) ** (1 - (strand == '+'))
+        is_rev = strand == -1
+        fr, to = [pos + strand*x for x in win[::strand]]
+        fd = abs(min(0, fr))  # >0 only in case that reached end of chromosome
+        fr, to = max(0, fr), min(to, chrlens[chr])
+        w = np.zeros(win[1] - win[0]+1)
+        wl = len(w)
+        for r in bam_in.fetch(chr, fr, to):
+            if not r.is_read1 or not r.is_proper_pair: continue
+            s = Segment(r, should_pair=True, afile=bam_in)
+            add = transform(s)
+            if is_rev: add = add = add[::-1]
+            if strand == 1:
+                wfr, wto = s.fr - fr, s.to - fr
+            else:
+                wfr, wto = to - s.to, to - s.fr
+            sfr, sto = abs(min(wfr, 0)), len(s) - abs(min(len(w) - wto, 0))
+            wfr, wto = max(0, wfr), min(wto, wl)
+            w[fd+wfr:fd+wto] += add[sfr:sto]
+        vectors.append(w)
+    s = {'d': np.vstack(vectors), 'w': w, 'l': annot}
     sio.savemat(output_file, {out_name: s})
 
 
@@ -131,7 +195,6 @@ def parse_arguments(p):
     else:
         args.__dict__['annot_in'] = open(args.annot_in)
     args.__dict__['w'] = [int(x) for x in args.w[1:-1].split(',')]
-
     if args.out_name is None:
         args.__dict__['out_name'] = os.path.split(args.output_file)[1].split(os.path.extsep)[0]
 
@@ -145,9 +208,7 @@ def build_parser():
     g = p.add_argument_group('Input')
     g.add_argument('bam_in', type=str, default=None, help='path to an indexed bam file')
     g.add_argument('--annot_in', '-ain', type=str, default=None,
-                   help='path to a "chr,pos,strand" annotation file, default is stdin')
-    g.add_argument('--delim', '-d', type=str, default=',', dest='d',
-                   help='annotation input delimiter')
+                   help='path to a "id,chr,pos,strand" annotation file, default is stdin')
 
     g = p.add_argument_group('Output')
     g.add_argument('--output_file', '-o', type=str, default='reshaped.mat',
@@ -167,7 +228,7 @@ def collect_transforms():
     transform_module = sys.modules[__name__]
     for x in dir(transform_module):
         try:
-            if issubclass(transform_module.__dict__[x], ReadTransform):
+            if issubclass(transform_module.__dict__[x], SegmentTransform):
                 tname = transform_module.__dict__[x].name
                 if tname is not None:
                     transforms[tname] = transform_module.__dict__[x]
@@ -204,5 +265,7 @@ def parse_transform_string(tstr):
 
 if __name__ == '__main__':
     args = parse_arguments(build_parser())
-    reshape(args.bam_in, args.annot_in, args.transform,
-            args.out_name, args.output_file, args.w, args.d)
+    print('working on it...')
+    paired_reshape(args.bam_in, args.annot_in, args.transform,
+                   args.out_name, args.output_file, args.w)
+    print('wrote file: %s' % args.output_file)

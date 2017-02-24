@@ -1,9 +1,11 @@
-import os
 import abc
-from collections import OrderedDict
-from common.config import *
 import logging as lg
+import os
 import subprocess as sp
+from collections import OrderedDict
+
+from common.config import *
+
 
 class FeatureCollection(OrderedDict):
 
@@ -189,7 +191,7 @@ class TranseqSample(Sample):
         # align, and parse statistics
         # bowtie2 --local -p 4 -U {fastq.gz} -x {index} 2> {stats} >/dev/null
         import shlex as sh
-        from transeq.utils import parse_bowtie_stats
+        from common.utils import parse_bowtie_stats
         stats = {}
         for genome, index in genome_indices:
             bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], index)),
@@ -202,7 +204,7 @@ class TranseqSample(Sample):
     @staticmethod
     def make_bam(files, n_threads, genome_index, fpipe):
         import shlex as sh
-        from transeq.utils import parse_bowtie_stats
+        from common.utils import parse_bowtie_stats
         bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], genome_index)),
                       stdout=sp.PIPE, stderr=sp.PIPE)
         awkcmd = ''.join(("""awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN")""",

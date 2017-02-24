@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 project_dir = os.path.sep.join(sys.modules[__name__].__file__.split(os.path.sep)[:-2])
 sys.path.append(project_dir)
@@ -27,7 +27,7 @@ from transeq.exporters import *
 from transeq.filters import *
 from transeq.manage import WorkManager
 from transeq.secure_smtp import ThreadedTlsSMTPHandler
-from transeq.utils import *
+from common.utils import *
 
 
 class FeatureCollection(OrderedDict):
@@ -118,6 +118,9 @@ class Sample(object):
         c = self.context.w_manager.get_channel()
         cp = self.context.w_manager.get_channel() #for parallel tasks
 
+        msg = '%s Converting FASTQ...' % self.base_name()
+        self.context.logq.put((lg.INFO, msg))
+
         # fastq
         args = (self.files, self.context.a.umi_length, self.context.bc_len)
         self.context.w_manager.execute(func=Sample.format_fastq, args=args, c=c)
@@ -199,7 +202,7 @@ class Sample(object):
         # align, and parse statistics
         # bowtie2 --local -p 4 -U {fastq.gz} -x {index} 2> {stats} >/dev/null
         import shlex as sh
-        from transeq.utils import parse_bowtie_stats
+        from common.utils import parse_bowtie_stats
         stats = {}
         for genome, index in genome_indices:
             bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], index)),
@@ -212,7 +215,7 @@ class Sample(object):
     @staticmethod
     def make_bam(files, n_threads, genome_index, fpipe):
         import shlex as sh
-        from transeq.utils import parse_bowtie_stats
+        from common.utils import parse_bowtie_stats
         bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], genome_index)),
                       stdout=sp.PIPE, stderr=sp.PIPE)
         awkcmd = ''.join(("""awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN")""",
@@ -290,13 +293,13 @@ class ExperimentHandler(object):
             else:
                 self.log(lg.DEBUG, '%s: %s' % (t, 'OK'))
 
-        self.w_manager = WorkManager(max_w=self.a.max_workers,
-                                     default_slurm_spec={'cpus-per-task':2, 'mem':'4G'})
-
         meta, self.bc_len, self.samples, self.features = self.parse_sample_db()
         self.user, self.proj, self.exp = meta
 
         self.setup_output()
+
+        self.w_manager = WorkManager(max_w=self.a.max_workers, tmp_path=self.tmp_dir,
+                                     default_slurm_spec={'cpus-per-task': 2, 'mem': '4G'})
 
         self.statq, self.stat_thread = self.setup_stats()
 
@@ -406,6 +409,7 @@ class ExperimentHandler(object):
             bcout = self.fastq_dir + os.sep + NO_BC_NAME + '.fastq.gz'
         self.split_barcodes(no_bc=bcout)
 
+        self.log(lg.INFO, 'Converting files...')
         cq = self.w_manager.get_channel()
         for bc, sample in self.samples.items():
             in_files = [self.tmp_dir + os.sep + sample.base_name() + '-1',
@@ -497,8 +501,8 @@ class ExperimentHandler(object):
             return b2s, bc_len
 
         sdb = open(self.a.sample_db)
-        proj = re.match('.*project.*:\s+(\w+)', sdb.readline())
-        exp = re.match('.*experiment.*:\s+(\w+)', sdb.readline())
+        proj = re.match('.*project.*:\s+([-\w]+)', sdb.readline())
+        exp = re.match('.*experiment.*:\s+([-\w]+)', sdb.readline())
         if exp is None:
             msg = 'barcodes file should contain a header with experiment name: ' \
                   'experiment: <expname>'
@@ -609,7 +613,7 @@ class ExperimentHandler(object):
         # awk -F "\\t" -f {script2-ham_dist}' % split erroneous matches (subject to given hamming distance)
         #
         """
-        :param no_bc: if given, orphan fastq enries are written to this prefix (with R1/R2 interleaved)
+        :param no_bc: if given, orphan fastq entries are written to this prefix (with R1/R2 interleaved)
         """
         def compile_awk(it, b2s):
             cnt_path = self.tmp_dir + os.sep + (BC_COUNTS_FNAME % it)
@@ -661,7 +665,7 @@ class ExperimentHandler(object):
             paste1 = sp.Popen('paste <(zcat %s) <(zcat %s)' % (r1,r2), stdout=sp.PIPE,
                               shell=True, executable='/bin/bash')
             awkin = sp.Popen(sh.split('paste - - - -'), stdin=paste1.stdout, stdout=sp.PIPE)
-            if self.a.debug: # only a small subset of reads
+            if self.a.debug: # only a subset of reads
                 nlines = round(self.a.db_nlines/4)*4  # making sure it's in fastq units
                 awkin = sp.Popen(sh.split('head -%i' % nlines), stdin=awkin.stdout, stdout=sp.PIPE)
             awk1 = sp.Popen(sh.split('awk -F "\\t" ' + awk1p), stdin=awkin.stdout, stdout=sp.PIPE)

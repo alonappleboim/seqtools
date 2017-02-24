@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 project_dir = os.path.sep.join(sys.modules[__name__].__file__.split(os.path.sep)[:-2])
 sys.path.append(project_dir)
@@ -27,7 +27,7 @@ from transeq.exporters import *
 from transeq.filters import *
 from transeq.manage import WorkManager
 from transeq.secure_smtp import ThreadedTlsSMTPHandler
-from transeq.utils import *
+from common.utils import *
 
 
 class FeatureCollection(OrderedDict):
@@ -199,7 +199,7 @@ class Sample(object):
         # align, and parse statistics
         # bowtie2 --local -p 4 -U {fastq.gz} -x {index} 2> {stats} >/dev/null
         import shlex as sh
-        from transeq.utils import parse_bowtie_stats
+        from common.utils import parse_bowtie_stats
         stats = {}
         for genome, index in genome_indices:
             bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], index)),
@@ -212,7 +212,7 @@ class Sample(object):
     @staticmethod
     def make_bam(files, n_threads, genome_index, fpipe):
         import shlex as sh
-        from transeq.utils import parse_bowtie_stats
+        from common.utils import parse_bowtie_stats
         bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], genome_index)),
                       stdout=sp.PIPE, stderr=sp.PIPE)
         awkcmd = ''.join(("""awk '{if (substr($1,1,1) == "@" && substr($2,1,2) == "SN")""",
