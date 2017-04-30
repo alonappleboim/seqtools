@@ -124,7 +124,39 @@ class Spike(SegmentTransform):
         return t
 
 
-def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250]):
+# def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250]):
+#     bam_in = pysam.AlignmentFile(bam_path)
+#     chrlens = chr_lengths()
+#     vectors = []
+#     annot = []
+#     for line in annot_file:
+#         id, chr, pos, strand = line.strip().split(ANNOT_DELIM)
+#         annot.append(id)
+#         pos, strand = int(pos), (-1) ** (1 - (strand == '+'))
+#         is_rev = strand == -1
+#         fr, to = [pos + strand*x for x in win[::strand]]
+#         fd = abs(min(0, fr))  # >0 only in case that reached end of chromosome
+#         fr, to = max(0, fr), min(to, chrlens[chr])
+#         w = np.zeros(win[1] - win[0]+1)
+#         wl = len(w)
+#         for r in bam_in.fetch(chr, fr, to):
+#             if r.is_reverse == is_rev:
+#                 s = Segment(r)
+#                 add = transform(s)
+#                 if is_rev: add = add = add[::-1]
+#                 if strand == 1:
+#                     wfr, wto = s.fr - fr, s.to - fr
+#                 else:
+#                     wfr, wto = to - s.to, to - s.fr
+#                 sfr, sto = abs(min(wfr, 0)), len(s) - abs(min(len(w) - wto, 0))
+#                 wfr, wto = max(0, wfr), min(wto, wl)
+#                 w[fd+wfr:fd+wto] += add[sfr:sto]
+#         vectors.append(w)
+#     s = {'d': np.vstack(vectors), 'w': w, 'l': annot}
+#     sio.savemat(output_file, {out_name: s})
+
+
+def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250], is_paired=True, same_strand=True):
     bam_in = pysam.AlignmentFile(bam_path)
     chrlens = chr_lengths()
     vectors = []
@@ -140,40 +172,13 @@ def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,25
         w = np.zeros(win[1] - win[0]+1)
         wl = len(w)
         for r in bam_in.fetch(chr, fr, to):
-            if r.is_reverse == is_rev:
+            if is_paired:
+                if not r.is_read1 or not r.is_proper_pair: continue
+                s = Segment(r, should_pair=True, afile=bam_in)
+            else:
+                if not same_strand and r.is_reverse == is_rev: continue
+                if same_strand and not r.is_reverse == is_rev: continue
                 s = Segment(r)
-                add = transform(s)
-                if is_rev: add = add = add[::-1]
-                if strand == 1:
-                    wfr, wto = s.fr - fr, s.to - fr
-                else:
-                    wfr, wto = to - s.to, to - s.fr
-                sfr, sto = abs(min(wfr, 0)), len(s) - abs(min(len(w) - wto, 0))
-                wfr, wto = max(0, wfr), min(wto, wl)
-                w[fd+wfr:fd+wto] += add[sfr:sto]
-        vectors.append(w)
-    s = {'d': np.vstack(vectors), 'w': w, 'l': annot}
-    sio.savemat(output_file, {out_name: s})
-
-
-def paired_reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250]):
-    bam_in = pysam.AlignmentFile(bam_path)
-    chrlens = chr_lengths()
-    vectors = []
-    annot = []
-    for line in annot_file:
-        id, chr, pos, strand = line.strip().split(ANNOT_DELIM)
-        annot.append(id)
-        pos, strand = int(pos), (-1) ** (1 - (strand == '+'))
-        is_rev = strand == -1
-        fr, to = [pos + strand*x for x in win[::strand]]
-        fd = abs(min(0, fr))  # >0 only in case that reached end of chromosome
-        fr, to = max(0, fr), min(to, chrlens[chr])
-        w = np.zeros(win[1] - win[0]+1)
-        wl = len(w)
-        for r in bam_in.fetch(chr, fr, to):
-            if not r.is_read1 or not r.is_proper_pair: continue
-            s = Segment(r, should_pair=True, afile=bam_in)
             add = transform(s)
             if is_rev: add = add = add[::-1]
             if strand == 1:
@@ -207,9 +212,12 @@ def build_parser():
 
     g = p.add_argument_group('Input')
     g.add_argument('bam_in', type=str, default=None, help='path to an indexed bam file')
+    g.add_argument('--is_paired', '-p', action='store_true',
+                   help='whether data is paired reads or not.')
+    g.add_argument('--not_same_strand', '-s', action='store_true',
+                   help='should directionality be flipped relative to annotation?')
     g.add_argument('--annot_in', '-ain', type=str, default=None,
-                   help='path to a "id,chr,pos,strand" annotation file, default is stdin')
-
+                   help='path to a "id\tchr\tpos\tstrand" annotation file, default is stdin')
     g = p.add_argument_group('Output')
     g.add_argument('--output_file', '-o', type=str, default='reshaped.mat',
                    help='to which output is written.')
@@ -219,7 +227,6 @@ def build_parser():
                    help='Comma separated limits for the areas around annotations to be collected')
     g.add_argument('--transform', '-T', type=str, default='cov()',
                    help='the transform applied to each read. See -th for details.')
-
     return p
 
 
@@ -265,7 +272,7 @@ def parse_transform_string(tstr):
 
 if __name__ == '__main__':
     args = parse_arguments(build_parser())
-    print('working on it...')
-    paired_reshape(args.bam_in, args.annot_in, args.transform,
-                   args.out_name, args.output_file, args.w)
+    print('reshaping %s...' % args.bam_in)
+    reshape(args.bam_in, args.annot_in, args.transform,
+            args.out_name, args.output_file, args.w, args.is_paired, not args.not_same_strand)
     print('wrote file: %s' % args.output_file)

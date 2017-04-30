@@ -1,0 +1,1155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="70793cab-fe3e-4f97-b5ba-2deab1e7d020" name="Default" comment="">
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/future/reshape_bam.py" afterPath="$PROJECT_DIR$/future/reshape_bam.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/transeq/main.py" afterPath="$PROJECT_DIR$/transeq/main.py" />
+    </list>
+    <ignored path="transeq_pipeline.iws" />
+    <ignored path=".idea/workspace.xml" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CreatePatchCommitExecutor">
+    <option name="PATCH_PATH" value="" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
+  <component name="FavoritesManager">
+    <favorites_list name="transeq_pipeline" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/transeq/main.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="452">
+              <caret line="210" column="41" selection-start-line="210" selection-start-column="41" selection-end-line="210" selection-end-column="41" />
+              <folding>
+                <element signature="e#248#423#0" expanded="false" />
+                <element signature="e#831#1492#0" expanded="false" />
+                <element signature="e#859#900#0" expanded="false" />
+                <element signature="e#943#1492#0" expanded="false" />
+                <element signature="e#979#1088#0" expanded="false" />
+                <element signature="e#1168#1425#0" expanded="false" />
+                <element signature="e#1296#1425#0" expanded="false" />
+                <element signature="e#1523#1974#0" expanded="false" />
+                <element signature="e#1592#1820#0" expanded="false" />
+                <element signature="e#1853#1932#0" expanded="false" />
+                <element signature="e#1958#1974#0" expanded="false" />
+                <element signature="e#2041#2150#0" expanded="false" />
+                <element signature="e#2184#3153#0" expanded="false" />
+                <element signature="e#2189#3003#0" expanded="false" />
+                <element signature="e#3188#3268#0" expanded="false" />
+                <element signature="e#3303#3377#0" expanded="false" />
+                <element signature="e#3411#3434#0" expanded="false" />
+                <element signature="e#3468#3507#0" expanded="false" />
+                <element signature="e#3559#3680#0" expanded="false" />
+                <element signature="e#4320#4433#0" expanded="false" />
+                <element signature="e#4826#4931#0" expanded="false" />
+                <element signature="e#5225#5335#0" expanded="false" />
+                <element signature="e#5781#5882#0" expanded="false" />
+                <element signature="e#6636#6744#0" expanded="false" />
+                <element signature="e#7135#8018#0" expanded="false" />
+                <element signature="e#8105#8134#0" expanded="false" />
+                <element signature="e#9109#9236#0" expanded="false" />
+                <element signature="e#9496#9669#0" expanded="false" />
+                <element signature="e#10321#11106#0" expanded="false" />
+                <element signature="e#10406#11017#0" expanded="false" />
+                <element signature="e#11165#11832#0" expanded="false" />
+                <element signature="e#11472#11539#0" expanded="false" />
+                <element signature="e#11615#11772#0" expanded="false" />
+                <element signature="e#11648#11772#0" expanded="false" />
+                <element signature="e#11873#35480#0" expanded="false" />
+                <element signature="e#11918#13226#0" expanded="false" />
+                <element signature="e#12262#12407#0" expanded="false" />
+                <element signature="e#13261#14574#0" expanded="false" />
+                <element signature="e#13780#14257#0" expanded="false" />
+                <element signature="e#14359#14414#0" expanded="false" />
+                <element signature="e#14613#14637#0" expanded="false" />
+                <element signature="e#14679#15145#0" expanded="false" />
+                <element signature="e#14898#15109#0" expanded="false" />
+                <element signature="e#15182#15324#0" expanded="false" />
+                <element signature="e#15364#16603#0" expanded="false" />
+                <element signature="e#15568#16541#0" expanded="false" />
+                <element signature="e#16273#16401#0" expanded="false" />
+                <element signature="e#16664#16987#0" expanded="false" />
+                <element signature="e#16742#16987#0" expanded="false" />
+                <element signature="e#16895#16987#0" expanded="false" />
+                <element signature="e#17020#17990#0" expanded="false" />
+                <element signature="e#17424#17726#0" expanded="false" />
+                <element signature="e#17435#17561#0" expanded="false" />
+                <element signature="e#17786#17908#0" expanded="false" />
+                <element signature="e#18032#22857#0" expanded="false" />
+                <element signature="e#18069#19783#0" expanded="false" />
+                <element signature="e#18091#18217#0" expanded="false" />
+                <element signature="e#18389#19744#0" expanded="false" />
+                <element signature="e#18569#18657#0" expanded="false" />
+                <element signature="e#18700#19744#0" expanded="false" />
+                <element signature="e#18784#19157#0" expanded="false" />
+                <element signature="e#18791#19053#0" expanded="false" />
+                <element signature="e#19310#19689#0" expanded="false" />
+                <element signature="e#19399#19577#0" expanded="false" />
+                <element signature="e#19399#19589#0" expanded="false" />
+                <element signature="e#19841#21785#0" expanded="false" />
+                <element signature="e#19935#21754#0" expanded="false" />
+                <element signature="e#20251#21709#0" expanded="false" />
+                <element signature="e#20324#20885#0" expanded="false" />
+                <element signature="e#20475#20628#0" expanded="false" />
+                <element signature="e#20696#20840#0" expanded="false" />
+                <element signature="e#20951#21452#0" expanded="false" />
+                <element signature="e#21112#21370#0" expanded="false" />
+                <element signature="e#21119#21228#0" expanded="false" />
+                <element signature="e#21549#21709#0" expanded="false" />
+                <element signature="e#21996#22181#0" expanded="false" />
+                <element signature="e#22002#22108#0" expanded="false" />
+                <element signature="e#22903#23913#0" expanded="false" />
+                <element signature="e#23951#26172#0" expanded="false" />
+                <element signature="e#23993#24691#0" expanded="false" />
+                <element signature="e#24463#24615#0" expanded="false" />
+                <element signature="e#25404#25497#0" expanded="false" />
+                <element signature="e#25544#25640#0" expanded="false" />
+                <element signature="e#25680#26172#0" expanded="false" />
+                <element signature="e#26015#26089#0" expanded="false" />
+                <element signature="e#26224#30284#0" expanded="false" />
+                <element signature="e#26224#26261#0" expanded="false" />
+                <element signature="e#26765#26885#1" expanded="false" />
+                <element signature="e#26932#27505#0" expanded="false" />
+                <element signature="e#27152#27371#0" expanded="false" />
+                <element signature="e#27559#28637#0" expanded="false" />
+                <element signature="e#27655#28016#0" expanded="false" />
+                <element signature="e#27691#28016#0" expanded="false" />
+                <element signature="e#28094#28343#0" expanded="false" />
+                <element signature="e#28130#28343#0" expanded="false" />
+                <element signature="e#28431#28505#0" expanded="false" />
+                <element signature="e#29053#30169#0" expanded="false" />
+                <element signature="e#29483#29654#0" expanded="false" />
+                <element signature="e#30319#33695#0" expanded="false" />
+                <element signature="e#30526#30829#0" expanded="false" />
+                <element signature="e#30935#30996#0" expanded="false" />
+                <element signature="e#31162#33234#0" expanded="false" />
+                <element signature="e#31354#31856#0" expanded="false" />
+                <element signature="e#31891#32480#0" expanded="false" />
+                <element signature="e#32515#33107#0" expanded="false" />
+                <element signature="e#33760#34533#0" expanded="false" />
+                <element signature="e#33863#33940#0" expanded="false" />
+                <element signature="e#33955#34030#0" expanded="false" />
+                <element signature="e#34077#34533#0" expanded="false" />
+                <element signature="e#34184#34533#0" expanded="false" />
+                <element signature="e#34334#34533#0" expanded="false" />
+                <element signature="e#34582#35334#0" expanded="false" />
+                <element signature="e#34582#34602#0" expanded="false" />
+                <element signature="e#35405#35480#0" expanded="false" />
+                <element signature="e#35507#42444#0" expanded="false" />
+                <element signature="e#35659#36008#0" expanded="false" />
+                <element signature="e#36298#36495#0" expanded="false" />
+                <element signature="e#36600#36749#0" expanded="false" />
+                <element signature="e#36835#37273#0" expanded="false" />
+                <element signature="e#37415#37950#0" expanded="false" />
+                <element signature="e#38146#38257#0" expanded="false" />
+                <element signature="e#38351#38496#0" expanded="false" />
+                <element signature="e#38672#38801#0" expanded="false" />
+                <element signature="e#38901#39143#0" expanded="false" />
+                <element signature="e#39382#39484#0" expanded="false" />
+                <element signature="e#39583#39719#0" expanded="false" />
+                <element signature="e#39841#40075#0" expanded="false" />
+                <element signature="e#40167#40268#0" expanded="false" />
+                <element signature="e#40876#40988#0" expanded="false" />
+                <element signature="e#41110#41280#0" expanded="false" />
+                <element signature="e#41740#41888#0" expanded="false" />
+                <element signature="e#42490#43187#0" expanded="false" />
+                <element signature="e#42539#43159#0" expanded="false" />
+                <element signature="e#42677#42857#0" expanded="false" />
+                <element signature="e#42964#43159#0" expanded="false" />
+                <element signature="e#43213#46650#0" expanded="false" />
+                <element signature="e#43400#44668#0" expanded="false" />
+                <element signature="e#43405#44463#0" expanded="false" />
+                <element signature="e#44706#45636#0" expanded="false" />
+                <element signature="e#44711#45445#0" expanded="false" />
+                <element signature="e#46023#46165#0" expanded="false" />
+                <element signature="e#46684#46865#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="manage.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/transeq/manage.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="242">
+              <caret line="134" column="25" selection-start-line="134" selection-start-column="24" selection-end-line="134" selection-end-column="25" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/common/slurm.py" />
+        <option value="$PROJECT_DIR$/future/reshape_bam.py" />
+        <option value="$PROJECT_DIR$/transeq/main.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="y" value="23" />
+    <option name="width" value="1440" />
+    <option name="height" value="873" />
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="false">
+    <OptionsSetting value="true" id="Add" />
+    <OptionsSetting value="true" id="Remove" />
+    <OptionsSetting value="true" id="Checkout" />
+    <OptionsSetting value="true" id="Update" />
+    <OptionsSetting value="true" id="Status" />
+    <OptionsSetting value="true" id="Edit" />
+    <ConfirmationsSetting value="0" id="Add" />
+    <ConfirmationsSetting value="0" id="Remove" />
+  </component>
+  <component name="ProjectView">
+    <navigator currentView="ProjectPane" proportions="" version="1">
+      <flattenPackages />
+      <showMembers />
+      <showModules />
+      <showLibraryContents />
+      <hideEmptyPackages />
+      <abbreviatePackageNames />
+      <autoscrollToSource />
+      <autoscrollFromSource />
+      <sortByType />
+      <manualOrder />
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scope" />
+      <pane id="Scratches" />
+      <pane id="ProjectPane">
+        <subPane>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="seqtools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="seqtools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="seqtools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="future" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="seqtools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="common" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/common" />
+      <recent name="$PROJECT_DIR$/transeq" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/mnase_chip" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="Tox" factoryName="Tox">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Attests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Doctests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Nosetests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="PARAMS" value="" />
+      <option name="USE_PARAM" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Unittests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="PUREUNITTEST" value="true" />
+      <option name="PARAMS" value="" />
+      <option name="USE_PARAM" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="py.test">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="testToRun" value="" />
+      <option name="keywords" value="" />
+      <option name="params" value="" />
+      <option name="USE_PARAM" value="false" />
+      <option name="USE_KEYWORD" value="false" />
+      <method />
+    </configuration>
+  </component>
+  <component name="ShelveChangesManager" show_recycled="false">
+    <option name="remove_strategy" value="false" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="70793cab-fe3e-4f97-b5ba-2deab1e7d020" name="Default" comment="" />
+      <created>1478157893483</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1478157893483</updated>
+    </task>
+    <task id="LOCAL-00001" summary="changed directory structure and fixed 2 bugs in slurm and error handling">
+      <created>1478182780984</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1478182780984</updated>
+    </task>
+    <task id="LOCAL-00002" summary="updated the hub generation code to handle new hub format in common lab hubs">
+      <created>1478243478425</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1478243478425</updated>
+    </task>
+    <task id="LOCAL-00003" summary="not sure what changes I made, but this version works, while the lat one doesnt...">
+      <created>1478275786720</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1478275786720</updated>
+    </task>
+    <task id="LOCAL-00004" summary="not sure what changes I made, but this version works, while the lat one doesnt...">
+      <created>1487934269439</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1487934269439</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="0" y="23" width="1440" height="873" extended-state="6" />
+    <editor active="true" />
+    <layout>
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.19309373" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24960506" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32892805" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32892805" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+    </layout>
+  </component>
+  <component name="Vcs.Log.UiProperties">
+    <option name="RECENTLY_FILTERED_USER_GROUPS">
+      <collection />
+    </option>
+    <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
+      <collection />
+    </option>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="changed directory structure and fixed 2 bugs in slurm and error handling" />
+    <MESSAGE value="updated the hub generation code to handle new hub format in common lab hubs" />
+    <MESSAGE value="not sure what changes I made, but this version works, while the lat one doesnt..." />
+    <option name="LAST_COMMIT_MESSAGE" value="not sure what changes I made, but this version works, while the lat one doesnt..." />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/transeq/config.py</url>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+      </breakpoints>
+      <option name="time" value="5" />
+    </breakpoint-manager>
+    <watches-manager />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/bed2mat.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bed2mat.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="405">
+          <caret line="27" column="23" selection-start-line="27" selection-start-column="23" selection-end-line="27" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test.py" />
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="120">
+          <caret line="8" column="32" selection-start-line="8" selection-start-column="28" selection-end-line="8" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="11085">
+          <caret line="739" column="62" selection-start-line="682" selection-start-column="8" selection-end-line="739" selection-end-column="62" />
+          <folding>
+            <element signature="e#248#423#0" expanded="false" />
+            <element signature="e#831#1492#0" expanded="false" />
+            <element signature="e#859#900#0" expanded="false" />
+            <element signature="e#943#1492#0" expanded="false" />
+            <element signature="e#979#1088#0" expanded="false" />
+            <element signature="e#1168#1425#0" expanded="false" />
+            <element signature="e#1296#1425#0" expanded="false" />
+            <element signature="e#1523#1974#0" expanded="false" />
+            <element signature="e#1592#1820#0" expanded="false" />
+            <element signature="e#1853#1932#0" expanded="false" />
+            <element signature="e#1958#1974#0" expanded="false" />
+            <element signature="e#2041#2150#0" expanded="false" />
+            <element signature="e#2184#3153#0" expanded="false" />
+            <element signature="e#2189#3003#0" expanded="false" />
+            <element signature="e#3188#3268#0" expanded="false" />
+            <element signature="e#3303#3377#0" expanded="false" />
+            <element signature="e#3411#3434#0" expanded="false" />
+            <element signature="e#3468#3507#0" expanded="false" />
+            <element signature="e#3559#3680#0" expanded="false" />
+            <element signature="e#4320#4433#0" expanded="false" />
+            <element signature="e#4826#4931#0" expanded="false" />
+            <element signature="e#5225#5335#0" expanded="false" />
+            <element signature="e#5781#5882#0" expanded="false" />
+            <element signature="e#6636#6744#0" expanded="false" />
+            <element signature="e#7135#8018#0" expanded="false" />
+            <element signature="e#8105#8134#0" expanded="false" />
+            <element signature="e#9109#9236#0" expanded="false" />
+            <element signature="e#9496#9669#0" expanded="false" />
+            <element signature="e#10321#11106#0" expanded="false" />
+            <element signature="e#10406#11017#0" expanded="false" />
+            <element signature="e#11165#11832#0" expanded="false" />
+            <element signature="e#11472#11539#0" expanded="false" />
+            <element signature="e#11615#11772#0" expanded="false" />
+            <element signature="e#11648#11772#0" expanded="false" />
+            <element signature="e#11873#35480#0" expanded="false" />
+            <element signature="e#11918#13226#0" expanded="false" />
+            <element signature="e#12262#12407#0" expanded="false" />
+            <element signature="e#13261#14574#0" expanded="false" />
+            <element signature="e#13780#14257#0" expanded="false" />
+            <element signature="e#14359#14414#0" expanded="false" />
+            <element signature="e#14613#14637#0" expanded="false" />
+            <element signature="e#14679#15145#0" expanded="false" />
+            <element signature="e#14898#15109#0" expanded="false" />
+            <element signature="e#15182#15324#0" expanded="false" />
+            <element signature="e#15364#16603#0" expanded="false" />
+            <element signature="e#15568#16541#0" expanded="false" />
+            <element signature="e#16273#16401#0" expanded="false" />
+            <element signature="e#16664#16987#0" expanded="false" />
+            <element signature="e#16742#16987#0" expanded="false" />
+            <element signature="e#16895#16987#0" expanded="false" />
+            <element signature="e#17020#17990#0" expanded="false" />
+            <element signature="e#17424#17726#0" expanded="false" />
+            <element signature="e#17435#17561#0" expanded="false" />
+            <element signature="e#17786#17908#0" expanded="false" />
+            <element signature="e#18032#22857#0" expanded="false" />
+            <element signature="e#18069#19783#0" expanded="false" />
+            <element signature="e#18091#18217#0" expanded="false" />
+            <element signature="e#18389#19744#0" expanded="false" />
+            <element signature="e#18569#18657#0" expanded="false" />
+            <element signature="e#18700#19744#0" expanded="false" />
+            <element signature="e#18784#19157#0" expanded="false" />
+            <element signature="e#18791#19053#0" expanded="false" />
+            <element signature="e#19310#19689#0" expanded="false" />
+            <element signature="e#19399#19577#0" expanded="false" />
+            <element signature="e#19399#19589#0" expanded="false" />
+            <element signature="e#19841#21785#0" expanded="false" />
+            <element signature="e#19935#21754#0" expanded="false" />
+            <element signature="e#20251#21709#0" expanded="false" />
+            <element signature="e#20324#20885#0" expanded="false" />
+            <element signature="e#20475#20628#0" expanded="false" />
+            <element signature="e#20696#20840#0" expanded="false" />
+            <element signature="e#20951#21452#0" expanded="false" />
+            <element signature="e#21112#21370#0" expanded="false" />
+            <element signature="e#21119#21228#0" expanded="false" />
+            <element signature="e#21549#21709#0" expanded="false" />
+            <element signature="e#21996#22181#0" expanded="false" />
+            <element signature="e#22002#22108#0" expanded="false" />
+            <element signature="e#22903#23913#0" expanded="false" />
+            <element signature="e#23951#26172#0" expanded="false" />
+            <element signature="e#23993#24691#0" expanded="false" />
+            <element signature="e#24463#24615#0" expanded="false" />
+            <element signature="e#25404#25497#0" expanded="false" />
+            <element signature="e#25544#25640#0" expanded="false" />
+            <element signature="e#25680#26172#0" expanded="false" />
+            <element signature="e#26015#26089#0" expanded="false" />
+            <element signature="e#26224#30284#0" expanded="false" />
+            <element signature="e#26224#26261#0" expanded="false" />
+            <element signature="e#26765#26885#1" expanded="false" />
+            <element signature="e#26932#27505#0" expanded="false" />
+            <element signature="e#27152#27371#0" expanded="false" />
+            <element signature="e#27559#28637#0" expanded="false" />
+            <element signature="e#27655#28016#0" expanded="false" />
+            <element signature="e#27691#28016#0" expanded="false" />
+            <element signature="e#28094#28343#0" expanded="false" />
+            <element signature="e#28130#28343#0" expanded="false" />
+            <element signature="e#28431#28505#0" expanded="false" />
+            <element signature="e#29053#30169#0" expanded="false" />
+            <element signature="e#29483#29654#0" expanded="false" />
+            <element signature="e#30319#33695#0" expanded="false" />
+            <element signature="e#30526#30829#0" expanded="false" />
+            <element signature="e#30935#30996#0" expanded="false" />
+            <element signature="e#31162#33234#0" expanded="false" />
+            <element signature="e#31354#31856#0" expanded="false" />
+            <element signature="e#31891#32480#0" expanded="false" />
+            <element signature="e#32515#33107#0" expanded="false" />
+            <element signature="e#33760#34533#0" expanded="false" />
+            <element signature="e#33863#33940#0" expanded="false" />
+            <element signature="e#33955#34030#0" expanded="false" />
+            <element signature="e#34077#34533#0" expanded="false" />
+            <element signature="e#34184#34533#0" expanded="false" />
+            <element signature="e#34334#34533#0" expanded="false" />
+            <element signature="e#34582#35334#0" expanded="false" />
+            <element signature="e#34582#34602#0" expanded="false" />
+            <element signature="e#35405#35480#0" expanded="false" />
+            <element signature="e#35507#42444#0" expanded="false" />
+            <element signature="e#35659#36008#0" expanded="false" />
+            <element signature="e#36298#36495#0" expanded="false" />
+            <element signature="e#36600#36749#0" expanded="false" />
+            <element signature="e#36835#37273#0" expanded="false" />
+            <element signature="e#37415#37950#0" expanded="false" />
+            <element signature="e#38146#38257#0" expanded="false" />
+            <element signature="e#38351#38496#0" expanded="false" />
+            <element signature="e#38672#38801#0" expanded="false" />
+            <element signature="e#38901#39143#0" expanded="false" />
+            <element signature="e#39382#39484#0" expanded="false" />
+            <element signature="e#39583#39719#0" expanded="false" />
+            <element signature="e#39841#40075#0" expanded="false" />
+            <element signature="e#40167#40268#0" expanded="false" />
+            <element signature="e#40876#40988#0" expanded="false" />
+            <element signature="e#41110#41280#0" expanded="false" />
+            <element signature="e#41740#41888#0" expanded="false" />
+            <element signature="e#42490#43187#0" expanded="false" />
+            <element signature="e#42539#43159#0" expanded="false" />
+            <element signature="e#42677#42857#0" expanded="false" />
+            <element signature="e#42964#43159#0" expanded="false" />
+            <element signature="e#43213#46650#0" expanded="false" />
+            <element signature="e#43400#44668#0" expanded="false" />
+            <element signature="e#43405#44463#0" expanded="false" />
+            <element signature="e#44706#45636#0" expanded="false" />
+            <element signature="e#44711#45445#0" expanded="false" />
+            <element signature="e#46023#46165#0" expanded="false" />
+            <element signature="e#46684#46865#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/manage.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2085">
+          <caret line="164" column="97" selection-start-line="164" selection-start-column="97" selection-end-line="164" selection-end-column="97" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/samples.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="86" column="23" selection-start-line="86" selection-start-column="23" selection-end-line="86" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="840">
+          <caret line="66" column="76" selection-start-line="66" selection-start-column="76" selection-end-line="66" selection-end-column="76" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/reshape_bam.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="660">
+          <caret line="44" column="34" selection-start-line="44" selection-start-column="27" selection-end-line="44" selection-end-column="34" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/utils.py" />
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/README">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/samples.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1200">
+          <caret line="80" column="0" selection-start-line="80" selection-start-column="0" selection-end-line="80" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3225">
+          <caret line="215" column="60" selection-start-line="215" selection-start-column="35" selection-end-line="215" selection-end-column="60" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/README">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mnase_chip/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="14595">
+          <caret line="973" column="16" selection-start-line="973" selection-start-column="16" selection-end-line="973" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/samples.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="80" column="0" selection-start-line="80" selection-start-column="0" selection-end-line="80" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3060">
+          <caret line="204" column="64" selection-start-line="204" selection-start-column="36" selection-end-line="204" selection-end-column="64" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/README">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="19" column="35" selection-start-line="19" selection-start-column="35" selection-end-line="19" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mnase_chip/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="465">
+          <caret line="32" column="0" selection-start-line="32" selection-start-column="0" selection-end-line="32" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/samples.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mnase_chip/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="120">
+          <caret line="8" column="51" selection-start-line="8" selection-start-column="51" selection-end-line="8" selection-end-column="51" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="630">
+          <caret line="42" column="82" selection-start-line="42" selection-start-column="43" selection-end-line="42" selection-end-column="82" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/secure_smtp.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../mnase_ip_pipeline/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="753">
+          <caret line="58" column="0" selection-start-line="36" selection-start-column="0" selection-end-line="58" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mnase_chip/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="120">
+          <caret line="8" column="51" selection-start-line="8" selection-start-column="51" selection-end-line="8" selection-end-column="51" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mnase_chip/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="705">
+          <caret line="973" column="16" selection-start-line="973" selection-start-column="16" selection-end-line="973" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/split.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="16" column="22" selection-start-line="16" selection-start-column="22" selection-end-line="16" selection-end-column="22" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/exporters.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="108">
+          <caret line="14" column="37" selection-start-line="14" selection-start-column="37" selection-end-line="14" selection-end-column="37" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/samples.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="86" column="23" selection-start-line="86" selection-start-column="23" selection-end-line="86" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/bam2stats.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="105">
+          <caret line="13" column="29" selection-start-line="13" selection-start-column="29" selection-end-line="13" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/parse_samples.py" />
+    <entry file="file://$USER_HOME$/Downloads/project/game.py" />
+    <entry file="file://$PROJECT_DIR$/test.py" />
+    <entry file="file://$PROJECT_DIR$/transeq/README">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="60">
+          <caret line="4" column="9" selection-start-line="4" selection-start-column="9" selection-end-line="4" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/utils.py" />
+    <entry file="file://$PROJECT_DIR$/transeq/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="105">
+          <caret line="8" column="5" selection-start-line="8" selection-start-column="5" selection-end-line="8" selection-end-column="5" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2016.2/python_stubs/-1201949651/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="232">
+          <caret line="476" column="4" selection-start-line="476" selection-start-column="4" selection-end-line="476" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="623">
+          <caret line="73" column="0" selection-start-line="73" selection-start-column="0" selection-end-line="73" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/filters.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="263">
+          <caret line="142" column="35" selection-start-line="142" selection-start-column="35" selection-end-line="142" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bed2mat.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="460">
+          <caret line="62" column="27" selection-start-line="62" selection-start-column="27" selection-end-line="62" selection-end-column="27" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/slurm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="446">
+          <caret line="81" column="0" selection-start-line="81" selection-start-column="0" selection-end-line="81" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/reshape_bam.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="548">
+          <caret line="276" column="73" selection-start-line="276" selection-start-column="73" selection-end-line="276" selection-end-column="73" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/manage.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="242">
+          <caret line="134" column="25" selection-start-line="134" selection-start-column="24" selection-end-line="134" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="452">
+          <caret line="210" column="41" selection-start-line="210" selection-start-column="41" selection-end-line="210" selection-end-column="41" />
+          <folding>
+            <element signature="e#248#423#0" expanded="false" />
+            <element signature="e#831#1492#0" expanded="false" />
+            <element signature="e#859#900#0" expanded="false" />
+            <element signature="e#943#1492#0" expanded="false" />
+            <element signature="e#979#1088#0" expanded="false" />
+            <element signature="e#1168#1425#0" expanded="false" />
+            <element signature="e#1296#1425#0" expanded="false" />
+            <element signature="e#1523#1974#0" expanded="false" />
+            <element signature="e#1592#1820#0" expanded="false" />
+            <element signature="e#1853#1932#0" expanded="false" />
+            <element signature="e#1958#1974#0" expanded="false" />
+            <element signature="e#2041#2150#0" expanded="false" />
+            <element signature="e#2184#3153#0" expanded="false" />
+            <element signature="e#2189#3003#0" expanded="false" />
+            <element signature="e#3188#3268#0" expanded="false" />
+            <element signature="e#3303#3377#0" expanded="false" />
+            <element signature="e#3411#3434#0" expanded="false" />
+            <element signature="e#3468#3507#0" expanded="false" />
+            <element signature="e#3559#3680#0" expanded="false" />
+            <element signature="e#4320#4433#0" expanded="false" />
+            <element signature="e#4826#4931#0" expanded="false" />
+            <element signature="e#5225#5335#0" expanded="false" />
+            <element signature="e#5781#5882#0" expanded="false" />
+            <element signature="e#6636#6744#0" expanded="false" />
+            <element signature="e#7135#8018#0" expanded="false" />
+            <element signature="e#8105#8134#0" expanded="false" />
+            <element signature="e#9109#9236#0" expanded="false" />
+            <element signature="e#9496#9669#0" expanded="false" />
+            <element signature="e#10321#11106#0" expanded="false" />
+            <element signature="e#10406#11017#0" expanded="false" />
+            <element signature="e#11165#11832#0" expanded="false" />
+            <element signature="e#11472#11539#0" expanded="false" />
+            <element signature="e#11615#11772#0" expanded="false" />
+            <element signature="e#11648#11772#0" expanded="false" />
+            <element signature="e#11873#35480#0" expanded="false" />
+            <element signature="e#11918#13226#0" expanded="false" />
+            <element signature="e#12262#12407#0" expanded="false" />
+            <element signature="e#13261#14574#0" expanded="false" />
+            <element signature="e#13780#14257#0" expanded="false" />
+            <element signature="e#14359#14414#0" expanded="false" />
+            <element signature="e#14613#14637#0" expanded="false" />
+            <element signature="e#14679#15145#0" expanded="false" />
+            <element signature="e#14898#15109#0" expanded="false" />
+            <element signature="e#15182#15324#0" expanded="false" />
+            <element signature="e#15364#16603#0" expanded="false" />
+            <element signature="e#15568#16541#0" expanded="false" />
+            <element signature="e#16273#16401#0" expanded="false" />
+            <element signature="e#16664#16987#0" expanded="false" />
+            <element signature="e#16742#16987#0" expanded="false" />
+            <element signature="e#16895#16987#0" expanded="false" />
+            <element signature="e#17020#17990#0" expanded="false" />
+            <element signature="e#17424#17726#0" expanded="false" />
+            <element signature="e#17435#17561#0" expanded="false" />
+            <element signature="e#17786#17908#0" expanded="false" />
+            <element signature="e#18032#22857#0" expanded="false" />
+            <element signature="e#18069#19783#0" expanded="false" />
+            <element signature="e#18091#18217#0" expanded="false" />
+            <element signature="e#18389#19744#0" expanded="false" />
+            <element signature="e#18569#18657#0" expanded="false" />
+            <element signature="e#18700#19744#0" expanded="false" />
+            <element signature="e#18784#19157#0" expanded="false" />
+            <element signature="e#18791#19053#0" expanded="false" />
+            <element signature="e#19310#19689#0" expanded="false" />
+            <element signature="e#19399#19577#0" expanded="false" />
+            <element signature="e#19399#19589#0" expanded="false" />
+            <element signature="e#19841#21785#0" expanded="false" />
+            <element signature="e#19935#21754#0" expanded="false" />
+            <element signature="e#20251#21709#0" expanded="false" />
+            <element signature="e#20324#20885#0" expanded="false" />
+            <element signature="e#20475#20628#0" expanded="false" />
+            <element signature="e#20696#20840#0" expanded="false" />
+            <element signature="e#20951#21452#0" expanded="false" />
+            <element signature="e#21112#21370#0" expanded="false" />
+            <element signature="e#21119#21228#0" expanded="false" />
+            <element signature="e#21549#21709#0" expanded="false" />
+            <element signature="e#21996#22181#0" expanded="false" />
+            <element signature="e#22002#22108#0" expanded="false" />
+            <element signature="e#22903#23913#0" expanded="false" />
+            <element signature="e#23951#26172#0" expanded="false" />
+            <element signature="e#23993#24691#0" expanded="false" />
+            <element signature="e#24463#24615#0" expanded="false" />
+            <element signature="e#25404#25497#0" expanded="false" />
+            <element signature="e#25544#25640#0" expanded="false" />
+            <element signature="e#25680#26172#0" expanded="false" />
+            <element signature="e#26015#26089#0" expanded="false" />
+            <element signature="e#26224#30284#0" expanded="false" />
+            <element signature="e#26224#26261#0" expanded="false" />
+            <element signature="e#26765#26885#1" expanded="false" />
+            <element signature="e#26932#27505#0" expanded="false" />
+            <element signature="e#27152#27371#0" expanded="false" />
+            <element signature="e#27559#28637#0" expanded="false" />
+            <element signature="e#27655#28016#0" expanded="false" />
+            <element signature="e#27691#28016#0" expanded="false" />
+            <element signature="e#28094#28343#0" expanded="false" />
+            <element signature="e#28130#28343#0" expanded="false" />
+            <element signature="e#28431#28505#0" expanded="false" />
+            <element signature="e#29053#30169#0" expanded="false" />
+            <element signature="e#29483#29654#0" expanded="false" />
+            <element signature="e#30319#33695#0" expanded="false" />
+            <element signature="e#30526#30829#0" expanded="false" />
+            <element signature="e#30935#30996#0" expanded="false" />
+            <element signature="e#31162#33234#0" expanded="false" />
+            <element signature="e#31354#31856#0" expanded="false" />
+            <element signature="e#31891#32480#0" expanded="false" />
+            <element signature="e#32515#33107#0" expanded="false" />
+            <element signature="e#33760#34533#0" expanded="false" />
+            <element signature="e#33863#33940#0" expanded="false" />
+            <element signature="e#33955#34030#0" expanded="false" />
+            <element signature="e#34077#34533#0" expanded="false" />
+            <element signature="e#34184#34533#0" expanded="false" />
+            <element signature="e#34334#34533#0" expanded="false" />
+            <element signature="e#34582#35334#0" expanded="false" />
+            <element signature="e#34582#34602#0" expanded="false" />
+            <element signature="e#35405#35480#0" expanded="false" />
+            <element signature="e#35507#42444#0" expanded="false" />
+            <element signature="e#35659#36008#0" expanded="false" />
+            <element signature="e#36298#36495#0" expanded="false" />
+            <element signature="e#36600#36749#0" expanded="false" />
+            <element signature="e#36835#37273#0" expanded="false" />
+            <element signature="e#37415#37950#0" expanded="false" />
+            <element signature="e#38146#38257#0" expanded="false" />
+            <element signature="e#38351#38496#0" expanded="false" />
+            <element signature="e#38672#38801#0" expanded="false" />
+            <element signature="e#38901#39143#0" expanded="false" />
+            <element signature="e#39382#39484#0" expanded="false" />
+            <element signature="e#39583#39719#0" expanded="false" />
+            <element signature="e#39841#40075#0" expanded="false" />
+            <element signature="e#40167#40268#0" expanded="false" />
+            <element signature="e#40876#40988#0" expanded="false" />
+            <element signature="e#41110#41280#0" expanded="false" />
+            <element signature="e#41740#41888#0" expanded="false" />
+            <element signature="e#42490#43187#0" expanded="false" />
+            <element signature="e#42539#43159#0" expanded="false" />
+            <element signature="e#42677#42857#0" expanded="false" />
+            <element signature="e#42964#43159#0" expanded="false" />
+            <element signature="e#43213#46650#0" expanded="false" />
+            <element signature="e#43400#44668#0" expanded="false" />
+            <element signature="e#43405#44463#0" expanded="false" />
+            <element signature="e#44706#45636#0" expanded="false" />
+            <element signature="e#44711#45445#0" expanded="false" />
+            <element signature="e#46023#46165#0" expanded="false" />
+            <element signature="e#46684#46865#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

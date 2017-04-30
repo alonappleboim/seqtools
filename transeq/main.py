@@ -138,7 +138,7 @@ class Sample(object):
                                                    'mem':'8G'})
         if self.context.a.count_index_paths is not None:
             args = (self.files, self.context.a.count_index_paths, self.context.a.n_threads)
-            self.context.w_manager.execute(func=Sample.make_bam, args=args, c=cp,
+            self.context.w_manager.execute(func=Sample.alignment_count, args=args, c=cp,
                                            slurm_spec={'cpus-per-task': self.context.a.n_threads,
                                                        'mem':'8G'})
             stats, err = cp.get()
@@ -208,7 +208,7 @@ class Sample(object):
             bt = sp.Popen(sh.split('%s --local -p %i -U %s -x %s' % (EXEC['BOWTIE'], n_threads, files['fastq'], index)),
                           stderr=sp.PIPE, stdout=open(os.devnull, 'w'))
             tmp_stats = parse_bowtie_stats(''.join(bt.stderr.read().decode('utf8')).split('\n'))
-            for k, v in tmp_stats:
+            for k, v in tmp_stats.items():
                 stats[genome+'-'+k] = v
         return stats
 
@@ -921,7 +921,7 @@ def parse_args(p):
              'by an optional +|- sign, to negate the filter ("-"). The default is "+". For example:\n'
              '"dup(kind=start&umi),polya(n=5)" will only keep reads that are unique when considering only read '
              'start position and the umi, and are considered polya reads with more than 5 A/T. See all available '
-             'filters below.\n') % (FILTERED_NAME,)
+             'filters below.\n') % (FILTERED_DIR,)
         spec = pprint_class_with_args_dict(collect_filters())
         print('\n========= FILTER HELP and SPECIFICATIONS =========\n')
         print(h)
