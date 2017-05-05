@@ -52,7 +52,6 @@ def execute(f, args, kwargs, slurm_spec, interval=.2, tmp_path=None):
     # execute
     opts = ' '.join('--%s=%s' % (k,str(v)) for k,v in slurm_spec.items())
     command = 'sbatch %s %s --output=%s' % (opts, tmpscript, scriptout)
-    print(command)
     p = sp.Popen(sh.split(command), stderr=sp.PIPE, stdout=sp.PIPE)
     out, err = p.communicate()
 
