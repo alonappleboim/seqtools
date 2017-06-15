@@ -34,7 +34,8 @@ EXEC = {
     'SAMTOOLS': 'samtools',
     'BEDTOOLS': 'bedtools',
     'SLURM': 'sbatch',
-    'BG2W': '/cs/bd/tools/bedGraphToBigWig'
+    'BG2W': '/cs/bd/tools/bedGraphToBigWig',
+    'BW2W': '/cs/bd/tools/bigWigToWig'
 }
 
 #meta

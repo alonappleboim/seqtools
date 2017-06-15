@@ -26,11 +26,18 @@ def parse_chrlen(chrlen_file):
 def read_bed(bed_in):
     data = {}
     for line in bed_in:
-        chr, pos, val = line.strip().split('\t')
+        parts = line.strip().split('\t')
+        if len(parts) == 4:
+            chr, fr, to, val = parts
+        else:
+            chr, fr, val = parts
+        fr = int(fr)
+        to = int(to) if len(parts) == 4 else fr + 1
         if chr not in data:
             data[chr] = ([],[])
-        data[chr][0].append(int(pos))
-        data[chr][1].append(float(val))
+        for i in range(fr,to):
+            data[chr][0].append(int(i))
+            data[chr][1].append(float(val))
     return data
 
 
@@ -46,7 +53,7 @@ def write_mat(out_to, data, strand, meta, chr_lengths):
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--input', '-i', type=str, default=None,
-                   help='bed input file: chr\tpos\tvalue, default is stdin')
+                   help='bed input file: chr\tpos(\tto)\tvalue, default is stdin')
     p.add_argument('name', type=str, help='sample name')
     p.add_argument('--output', '-o', type=str, default=None,
                    help='to which .mat output is written. default is name.mat')
