@@ -5,7 +5,7 @@ from scipy import sparse
 import argparse
 
 
-INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.5'
+INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     import subprocess as sp
     import os
@@ -23,28 +23,22 @@ def parse_chrlen(chrlen_file):
     return cl
 
 
-def read_bed(bed_in):
+def read_cft(cft_in):
     data = {}
-    for line in bed_in:
-        parts = line.strip().split('\t')
-        if len(parts) == 4:
-            chr, fr, to, val = parts
-        else:
-            chr, fr, val = parts
-        fr = int(fr)
-        to = int(to) if len(parts) == 4 else fr + 1
+    for line in cft_in:
+        chr, fr, to = line.strip().split('\t')
         if chr not in data:
             data[chr] = ([],[])
-        for i in range(fr,to):
-            data[chr][0].append(int(i))
-            data[chr][1].append(float(val))
+        data[chr][0].append(int(fr))
+        data[chr][1].append(int(to))
     return data
 
 
 def write_mat(out_to, data, strand, meta, chr_lengths):
     s = {}
-    for chr, (poss, vals) in data.items():
-        s[chr] = sparse.csc_matrix((vals, (poss, np.zeros(len(poss)))), shape=(chr_lengths[chr],1), dtype=float)
+    for chr, (frs, tos) in data.items():
+        s[chr] = sparse.csc_matrix((np.ones(len(frs)), (np.asarray(frs)-1, np.asarray(tos)-1)),
+                                   shape=(chr_lengths[chr],chr_lengths[chr]), dtype=float)
     s['meta'] = meta
     s['strand'] = strand
     sio.savemat(out_to, mdict=dict(data=s))
@@ -53,12 +47,12 @@ def write_mat(out_to, data, strand, meta, chr_lengths):
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--input', '-i', type=str, default=None,
-                   help='bed input file: chr\tpos(\tto)\tvalue, default is stdin')
+                   help='cft input file: chr\tfrom\tto, default is stdin')
     p.add_argument('name', type=str, help='sample name')
     p.add_argument('--output', '-o', type=str, default=None,
-                   help='to which .mat output is written. default is name.mat')
+                   help='to which .mat output is written. default is name.cft.mat')
     p.add_argument('--strand', '-s', type=str, choices=['w','c','no'], default='no',
-                   help='bed input strand ("no" if not strand-specific)')
+                   help='cft strand ("no" if not strand-specific)')
     p.add_argument('--chr_len_file', '-clf', type=str, default='/cs/wetlab/genomics/scer/genome/sacCer3.sizes',
                    help='path to chromosome lengths file')
     args = p.parse_args()
@@ -68,10 +62,10 @@ def parse_args():
         args.__dict__['input'] = open(args.input)
 
     if args.output is None:
-        args.__dict__['output'] = args.name + '.mat'
+        args.__dict__['output'] = args.name + '.cft.mat'
 
     return args
 
 if __name__ == '__main__':
     args = parse_args()
-    write_mat(args.output, read_bed(args.input), args.strand, args.name, parse_chrlen(args.chr_len_file))
+    write_mat(args.output, read_cft(args.input), args.strand, args.name, parse_chrlen(args.chr_len_file))

@@ -2,11 +2,15 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="70793cab-fe3e-4f97-b5ba-2deab1e7d020" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/build_hub.py" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/bw2bed.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/bed2mat.py" afterPath="$PROJECT_DIR$/future/bed2mat.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/cft2smat.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/compile_hub_instructions.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/split_barcodes.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/trackDB.txt" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/future/ucsc2igv.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/common/config.py" afterPath="$PROJECT_DIR$/common/config.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/future/bed2mat.py" afterPath="$PROJECT_DIR$/future/bed2mat.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/future/build_hub.py" afterPath="$PROJECT_DIR$/future/build_hub.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/future/bw2bed.py" afterPath="$PROJECT_DIR$/future/bw2bed.py" />
     </list>
     <ignored path="transeq_pipeline.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -26,64 +30,14 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="parse_lens.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/parse_lens.py">
+      <file leaf-file-name="ucsc2igv.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/future/ucsc2igv.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="615">
-              <caret line="47" column="56" selection-start-line="47" selection-start-column="56" selection-end-line="47" selection-end-column="56" />
+            <state relative-caret-position="680">
+              <caret line="130" column="31" selection-start-line="130" selection-start-column="31" selection-end-line="130" selection-end-column="31" />
               <folding>
-                <element signature="e#0#10#0" expanded="true" />
+                <element signature="e#0#1141#1" expanded="true" />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="bed2mat.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/future/bed2mat.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="293">
-              <caret line="37" column="30" selection-start-line="37" selection-start-column="30" selection-end-line="37" selection-end-column="30" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="bw2bed.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/future/bw2bed.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="198">
-              <caret line="34" column="27" selection-start-line="34" selection-start-column="27" selection-end-line="34" selection-end-column="27" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="cft2smat.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/future/cft2smat.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="135">
-              <caret line="13" column="10" selection-start-line="0" selection-start-column="0" selection-end-line="71" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/transeq/main.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="14010">
-              <caret line="938" column="52" selection-start-line="938" selection-start-column="52" selection-end-line="938" selection-end-column="52" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="filters.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/transeq/filters.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="490">
-              <caret line="250" column="16" selection-start-line="250" selection-start-column="16" selection-end-line="250" selection-end-column="16" />
-              <folding />
             </state>
           </provider>
         </entry>
@@ -91,8 +45,79 @@
       <file leaf-file-name="build_hub.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/future/build_hub.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+            <state relative-caret-position="558">
+              <caret line="361" column="8" selection-start-line="361" selection-start-column="8" selection-end-line="361" selection-end-column="8" />
+              <folding>
+                <element signature="e#1670#1746#0" expanded="false" />
+                <element signature="e#2085#2601#0" expanded="false" />
+                <element signature="e#2634#3303#0" expanded="false" />
+                <element signature="e#3335#4146#0" expanded="false" />
+                <element signature="e#3383#3846#0" expanded="false" />
+                <element signature="e#3400#3648#0" expanded="false" />
+                <element signature="e#3455#3543#0" expanded="false" />
+                <element signature="e#3692#3846#0" expanded="false" />
+                <element signature="e#3872#4130#0" expanded="false" />
+                <element signature="e#3889#4000#0" expanded="false" />
+                <element signature="e#4172#4256#0" expanded="false" />
+                <element signature="e#4285#4985#0" expanded="false" />
+                <element signature="e#4324#4425#0" expanded="false" />
+                <element signature="e#4459#4569#0" expanded="false" />
+                <element signature="e#4615#4885#0" expanded="false" />
+                <element signature="e#4658#4885#0" expanded="false" />
+                <element signature="e#4723#4809#0" expanded="false" />
+                <element signature="e#4769#4809#0" expanded="false" />
+                <element signature="e#4920#4985#0" expanded="false" />
+                <element signature="e#5050#5206#0" expanded="false" />
+                <element signature="e#5267#6780#0" expanded="false" />
+                <element signature="e#5395#6426#0" expanded="false" />
+                <element signature="e#5713#6426#0" expanded="false" />
+                <element signature="e#5953#6235#0" expanded="false" />
+                <element signature="e#5990#6235#0" expanded="false" />
+                <element signature="e#6086#6190#0" expanded="false" />
+                <element signature="e#6141#6190#0" expanded="false" />
+                <element signature="e#6566#6625#0" expanded="false" />
+                <element signature="e#6826#7602#0" expanded="false" />
+                <element signature="e#6988#7553#0" expanded="false" />
+                <element signature="e#7019#7074#0" expanded="false" />
+                <element signature="e#7238#7365#0" expanded="false" />
+                <element signature="e#7658#7739#0" expanded="false" />
+                <element signature="e#7789#8156#0" expanded="false" />
+                <element signature="e#7887#8090#0" expanded="false" />
+                <element signature="e#7916#8090#0" expanded="false" />
+                <element signature="e#8203#8972#0" expanded="false" />
+                <element signature="e#8285#8941#0" expanded="false" />
+                <element signature="e#8570#8730#0" expanded="false" />
+                <element signature="e#8592#8729#0" expanded="false" />
+                <element signature="e#8782#8941#0" expanded="false" />
+                <element signature="e#8804#8940#0" expanded="false" />
+                <element signature="e#9031#9706#0" expanded="false" />
+                <element signature="e#9281#9462#0" expanded="false" />
+                <element signature="e#9592#9706#0" expanded="false" />
+                <element signature="e#9952#10234#0" expanded="false" />
+                <element signature="e#10011#10086#0" expanded="false" />
+                <element signature="e#10313#10603#0" expanded="false" />
+                <element signature="e#10333#10601#0" expanded="false" />
+                <element signature="e#10686#10800#0" expanded="false" />
+                <element signature="e#10706#10798#0" expanded="false" />
+                <element signature="e#12297#12829#0" expanded="false" />
+                <element signature="e#12424#12814#0" expanded="false" />
+                <element signature="e#12476#12814#0" expanded="false" />
+                <element signature="e#13372#13616#0" expanded="false" />
+                <element signature="e#13707#13847#0" expanded="false" />
+                <element signature="e#13938#14150#0" expanded="false" />
+                <element signature="e#14552#15045#0" expanded="false" />
+                <element signature="e#15307#15921#0" expanded="false" />
+                <element signature="e#18294#18419#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="trackDB.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/future/trackDB.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="37995">
+              <caret line="2533" column="27" selection-start-line="2533" selection-start-column="27" selection-end-line="2533" selection-end-column="27" />
               <folding />
             </state>
           </provider>
@@ -123,13 +148,23 @@
         <option value="$PROJECT_DIR$/../../handle_bubble.bash" />
         <option value="$PROJECT_DIR$/bed2mat.py" />
         <option value="$PROJECT_DIR$/transeq/build_hub.py" />
+        <option value="$PROJECT_DIR$/future/stam" />
+        <option value="$PROJECT_DIR$/future/stam.html" />
+        <option value="$PROJECT_DIR$/future/bw2bed.py" />
+        <option value="$PROJECT_DIR$/future/bed2mat.py" />
+        <option value="$PROJECT_DIR$/future/compile_hub_instructions.py" />
+        <option value="$PROJECT_DIR$/transeq/split_barcodes.py" />
+        <option value="$PROJECT_DIR$/future/split_barcodes.py" />
+        <option value="$PROJECT_DIR$/future/trackDB.txt" />
+        <option value="$PROJECT_DIR$/future/ucsc2igv.py" />
+        <option value="$PROJECT_DIR$/future/build_hub.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
     <option name="y" value="23" />
-    <option name="width" value="1280" />
-    <option name="height" value="773" />
+    <option name="width" value="1920" />
+    <option name="height" value="1173" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -156,7 +191,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scratches" />
       <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
@@ -186,12 +220,41 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
+              <option name="myItemId" value="transeq" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="seqtools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
               <option name="myItemId" value="future" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="transeq_pipeline" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="seqtools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="common" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -208,7 +271,24 @@
       <recent name="$PROJECT_DIR$/mnase_chip" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.ucsc2igv">
+    <configuration default="false" name="ucsc2igv" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/future" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="transeq_pipeline" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/future/ucsc2igv.py" />
+      <option name="PARAMETERS" value="-i trackDB.txt" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -343,6 +423,14 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
+    <list size="1">
+      <item index="0" class="java.lang.String" itemvalue="Python.ucsc2igv" />
+    </list>
+    <recent_temporary>
+      <list size="1">
+        <item index="0" class="java.lang.String" itemvalue="Python.ucsc2igv" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="ShelveChangesManager" show_recycled="false">
     <option name="remove_strategy" value="false" />
@@ -390,30 +478,37 @@
       <option name="project" value="LOCAL" />
       <updated>1493960479392</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="moved some stuff around">
+      <created>1497509169464</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1497509169464</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1280" height="773" extended-state="0" />
+    <frame x="0" y="23" width="1920" height="1173" extended-state="6" />
     <editor active="false" />
     <layout>
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.14535345" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.14375988" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24960506" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3277849" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24947146" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39948782" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32892805" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32892805" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
   <component name="Vcs.Log.UiProperties">
@@ -432,7 +527,8 @@
     <MESSAGE value="updated the hub generation code to handle new hub format in common lab hubs" />
     <MESSAGE value="not sure what changes I made, but this version works, while the lat one doesnt..." />
     <MESSAGE value="removed a debug print from the slurm wrapper" />
-    <option name="LAST_COMMIT_MESSAGE" value="removed a debug print from the slurm wrapper" />
+    <MESSAGE value="moved some stuff around" />
+    <option name="LAST_COMMIT_MESSAGE" value="moved some stuff around" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -442,46 +538,18 @@
           <option name="timeStamp" value="3" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="5" />
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+      <option name="time" value="20" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/transeq/manage.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2085">
-          <caret line="164" column="97" selection-start-line="164" selection-start-column="97" selection-end-line="164" selection-end-column="97" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/common/samples.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="225">
-          <caret line="86" column="23" selection-start-line="86" selection-start-column="23" selection-end-line="86" selection-end-column="23" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/common/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/common/slurm.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/common/slurm.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/common/slurm.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -675,7 +743,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/common/utils.py" />
     <entry file="file://$PROJECT_DIR$/transeq/config.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="105">
@@ -705,24 +772,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/common/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="540">
-          <caret line="36" column="43" selection-start-line="36" selection-start-column="43" selection-end-line="36" selection-end-column="43" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../../handle_bubble.bash" />
-    <entry file="file://$PROJECT_DIR$/parse_lens.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="615">
-          <caret line="47" column="56" selection-start-line="47" selection-start-column="56" selection-end-line="47" selection-end-column="56" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/transeq/manage.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-457">
@@ -730,35 +780,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/transeq/main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="14010">
-          <caret line="938" column="52" selection-start-line="938" selection-start-column="52" selection-end-line="938" selection-end-column="52" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/transeq/filters.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="490">
           <caret line="250" column="16" selection-start-line="250" selection-start-column="16" selection-end-line="250" selection-end-column="16" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/future/bed2mat.py">
+    <entry file="file://$PROJECT_DIR$/common/config.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="293">
-          <caret line="37" column="30" selection-start-line="37" selection-start-column="30" selection-end-line="37" selection-end-column="30" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/future/bw2bed.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="198">
-          <caret line="34" column="27" selection-start-line="34" selection-start-column="27" selection-end-line="34" selection-end-column="27" />
-          <folding />
+        <state relative-caret-position="345">
+          <caret line="23" column="24" selection-start-line="23" selection-start-column="24" selection-end-line="23" selection-end-column="24" />
         </state>
       </provider>
     </entry>
@@ -766,15 +798,143 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="135">
           <caret line="13" column="10" selection-start-line="0" selection-start-column="0" selection-end-line="71" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/stam.html" />
+    <entry file="file://$PROJECT_DIR$/future/bed2mat.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="18" column="17" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/compile_hub_instructions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15">
+          <caret line="9" column="0" selection-start-line="9" selection-start-column="0" selection-end-line="9" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/common/utils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="360">
+          <caret line="42" column="33" selection-start-line="42" selection-start-column="33" selection-end-line="42" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/transeq/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="257">
+          <caret line="822" column="31" selection-start-line="822" selection-start-column="31" selection-end-line="822" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/split_barcodes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="375">
+          <caret line="25" column="24" selection-start-line="25" selection-start-column="24" selection-end-line="25" selection-end-column="24" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/bw2bed.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="270">
+          <caret line="65" column="0" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/parse_lens.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="183">
+          <caret line="22" column="20" selection-start-line="22" selection-start-column="20" selection-end-line="22" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/trackDB.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="37995">
+          <caret line="2533" column="27" selection-start-line="2533" selection-start-column="27" selection-end-line="2533" selection-end-column="27" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/future/ucsc2igv.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="680">
+          <caret line="130" column="31" selection-start-line="130" selection-start-column="31" selection-end-line="130" selection-end-column="31" />
+          <folding>
+            <element signature="e#0#1141#1" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/future/build_hub.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
+        <state relative-caret-position="558">
+          <caret line="361" column="8" selection-start-line="361" selection-start-column="8" selection-end-line="361" selection-end-column="8" />
+          <folding>
+            <element signature="e#1670#1746#0" expanded="false" />
+            <element signature="e#2085#2601#0" expanded="false" />
+            <element signature="e#2634#3303#0" expanded="false" />
+            <element signature="e#3335#4146#0" expanded="false" />
+            <element signature="e#3383#3846#0" expanded="false" />
+            <element signature="e#3400#3648#0" expanded="false" />
+            <element signature="e#3455#3543#0" expanded="false" />
+            <element signature="e#3692#3846#0" expanded="false" />
+            <element signature="e#3872#4130#0" expanded="false" />
+            <element signature="e#3889#4000#0" expanded="false" />
+            <element signature="e#4172#4256#0" expanded="false" />
+            <element signature="e#4285#4985#0" expanded="false" />
+            <element signature="e#4324#4425#0" expanded="false" />
+            <element signature="e#4459#4569#0" expanded="false" />
+            <element signature="e#4615#4885#0" expanded="false" />
+            <element signature="e#4658#4885#0" expanded="false" />
+            <element signature="e#4723#4809#0" expanded="false" />
+            <element signature="e#4769#4809#0" expanded="false" />
+            <element signature="e#4920#4985#0" expanded="false" />
+            <element signature="e#5050#5206#0" expanded="false" />
+            <element signature="e#5267#6780#0" expanded="false" />
+            <element signature="e#5395#6426#0" expanded="false" />
+            <element signature="e#5713#6426#0" expanded="false" />
+            <element signature="e#5953#6235#0" expanded="false" />
+            <element signature="e#5990#6235#0" expanded="false" />
+            <element signature="e#6086#6190#0" expanded="false" />
+            <element signature="e#6141#6190#0" expanded="false" />
+            <element signature="e#6566#6625#0" expanded="false" />
+            <element signature="e#6826#7602#0" expanded="false" />
+            <element signature="e#6988#7553#0" expanded="false" />
+            <element signature="e#7019#7074#0" expanded="false" />
+            <element signature="e#7238#7365#0" expanded="false" />
+            <element signature="e#7658#7739#0" expanded="false" />
+            <element signature="e#7789#8156#0" expanded="false" />
+            <element signature="e#7887#8090#0" expanded="false" />
+            <element signature="e#7916#8090#0" expanded="false" />
+            <element signature="e#8203#8972#0" expanded="false" />
+            <element signature="e#8285#8941#0" expanded="false" />
+            <element signature="e#8570#8730#0" expanded="false" />
+            <element signature="e#8592#8729#0" expanded="false" />
+            <element signature="e#8782#8941#0" expanded="false" />
+            <element signature="e#8804#8940#0" expanded="false" />
+            <element signature="e#9031#9706#0" expanded="false" />
+            <element signature="e#9281#9462#0" expanded="false" />
+            <element signature="e#9592#9706#0" expanded="false" />
+            <element signature="e#9952#10234#0" expanded="false" />
+            <element signature="e#10011#10086#0" expanded="false" />
+            <element signature="e#10313#10603#0" expanded="false" />
+            <element signature="e#10333#10601#0" expanded="false" />
+            <element signature="e#10686#10800#0" expanded="false" />
+            <element signature="e#10706#10798#0" expanded="false" />
+            <element signature="e#12297#12829#0" expanded="false" />
+            <element signature="e#12424#12814#0" expanded="false" />
+            <element signature="e#12476#12814#0" expanded="false" />
+            <element signature="e#13372#13616#0" expanded="false" />
+            <element signature="e#13707#13847#0" expanded="false" />
+            <element signature="e#13938#14150#0" expanded="false" />
+            <element signature="e#14552#15045#0" expanded="false" />
+            <element signature="e#15307#15921#0" expanded="false" />
+            <element signature="e#18294#18419#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>

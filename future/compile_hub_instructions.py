@@ -1,18 +1,3 @@
-'''
-Usage examples:
-
-Reads bigwig files from cwd, create hub "DiamideAbcamome2015-test", identifies bigwig files that look like
-K3K4me3_TP0_15.bw, sorts by time, groups by Antibody used, and uses coloring instructions from external file:
-~/DiamideAbcamome2015_clrs.tab
-$ python ~/Dropbox/workspace/seqtools/future/build_hub.py . DiamideAbcamome2015-test "(?P<Ab>[\w\.]+)_TP\d_(?P<time>\d+).bw" -o "time:number" -g "Ab" -f ~/DiamideAbcamome2015_clrs.tab
-
-Reads bigwig files from cwd, create hub "asym-5p_may2017", identifies bigwig files that look like
-5324-K36-X-eaf3-m_1.w.bw, groups by strain,res,his,bg,H3, sorts by bg, then H3, then res, then his, then rep, and
-finally the strand. Sets default graph type to "bar" in all tracks (no conditions), and adds an indexing entry in the
-joint html file.
-python ~/Dropbox/workspace/seqtools/future/build_hub.py . asym-5p_may2017 "(?P<strain>[\w]+)(?:-(?P<res>\w+)-(?P<his>\w)-(?P<bg>\w*)-(?P<H3>m|w))?_(?P<rep>\w)_\w+\.(?P<str>w|c)\.bw" -g "strain,res,his,bg,H3" -o "bg:string;H3:string;res:string;his:string;rep:string;str:string" -tp ":graphTypeDefault=bar" -i
-'''
-
 import sys
 import argparse
 import os
@@ -61,7 +46,7 @@ DEF_PARENT_PROPS = TrackProps([('track','none'),
                                ('shortLabel','none'),
                                ('longLabel','none'),
                                ('maxHeightPixels','100:32:8'),
-                               ('priority','1')])
+                               ('priority','50')])
 
 
 DEF_TRACK_PROPS = TrackProps([('track','none'),
@@ -75,8 +60,7 @@ DEF_TRACK_PROPS = TrackProps([('track','none'),
                               ('smoothingWindow','4'),
                               ('windowingFunction','mean'),
                               ('graphTypeDefault','points'),
-                              ('bigDataUrl','none'),
-                              ('priority', '1')])
+                              ('bigDataUrl','none')])
 
 
 def get_cmap(cname, n):
@@ -140,20 +124,18 @@ class Hub(object):
         self.grouped_by = []
         self.var_order = []
 
-    def organize_by_goc(self, goc_path, order_by):
+    def organize_by_goc(self, goc_path):
         clrs = []
-        gtracks = OrderedDict()
-        with open(goc_path) as GOC: #parse input, filter and group tracks
-            vars = GOC.readline().strip().split('\t')
-            if vars[-1] != 'RGB': raise IOError('Last column in GOC file should be "RGB"')
+        with open(goc_path) as GOC:
+            vars = GOC.readline().strip.split('\t')
+            gtracks = OrderedDict()
+            assert (vars[-1] == 'RGB', 'Last column in GOC file should be "RGB"')
             vars = vars[:-1]
-            for v in vars:
-                if v not in self.vars: ValueError('%s not in regexp variables' % v)
+            for v in vars: assert(v in self.vars)
             for line in GOC:
                 tg = []  # track group
                 vals = line.strip().split('\t')
-                clrs.append([int(x) for x in vals[-1].split(',')])
-                vals = vals[:-1]
+                vals, c = vals[:-1], vals[-1]
                 for ts in self.gtracks.values():
                     for t in ts:
                         add = True
@@ -162,37 +144,17 @@ class Hub(object):
                                 add = False
                                 break
                         if add: tg.append(t)
-                if not tg:
-                    raise ValueError('No tracks with vals: %s' % ','.join('%s-%s' % v for v in zip(vars,vals)))
-                gtracks[tuple(zip(vars,vals))] = tg
-        self.gtracks = gtracks
-        self.grouped_by = vars
 
-        # order within groups, and color
-        for v in vars:
-            try: order_by.remove(v)
-            except ValueError: pass
-        self.sort_tracks(order_by)
-        for c, gt in zip(clrs, self.gtracks.values()):
-            for t, s in zip(gt, shades(c, len(gt))): t.color = s
 
-    def from_path(self, path, ves):
+    def from_path(self, path, ve):
         path = os.path.abspath(path)
-        allvars = set([])
-        for ve in ves: allvars |= set(ve.groupindex.keys())
         for f in os.listdir(path):
-            for ve in ves:
-                m = ve.match(f)
-                if m is not None: break
-            if m is None: continue
-            m = list(m.groupdict().items())
-            notseen = allvars.copy()
+            m = ve.match(f)
+            if not m: continue
+            m = tuple(m.groupdict().items())
             for var, val in m:
                 if var not in self.vars: self.vars[var] = set([])
                 self.vars[var].add(val)
-                notseen -= set([var])
-            for v in notseen: m.append((v,'None'))
-            m = tuple(m)
             self.gtracks[m] = [Track(src=path+os.path.sep+f, vars=dict(m))] # single track groups to begin with
         self.grouped_by = list(self.vars.keys())
 
@@ -261,36 +223,33 @@ class Hub(object):
             GEN.write('\n'.join(["genome %s" % args.genome_assembly,
                                  "trackDb trackDB.txt"]))
         with open(dstpath + os.path.sep + 'trackDB.txt', 'w') as T:
-            for gi, (gvars, tracks) in enumerate(self.gtracks.items()):
+            for gvars, tracks in self.gtracks.items():
                 gvars = dict(gvars)
                 gname = '_'.join(['%s-%s' % (v, gvars[v]) for v in self.grouped_by])
                 sys.stderr.write('Handling %s\n' % gname)
-                gprops = [('priority', gi+1), ('shortLabel', gname), ('longLabel', gname), ('track', gname)]
-                hdr = DEF_PARENT_PROPS.format(gprops)
+                hdr = DEF_PARENT_PROPS.format([('shortLabel',gname),('longLabel',gname),('track',gname)])
                 T.write(hdr + '\n\n')
-                for ti, t in enumerate(tracks):
+                for t in tracks:
                     tname = t.get_name()
-                    if len(tracks) == 1: tname += '_'
                     tdst = dstpath + os.path.sep + tname + '.bw'
                     shutil.copy(t.src, tdst)
-                    if args.link: pass #remove old file and replace with a link to the new version in the track hub
+                    if args.link:
+                        pass #remove old file and replace with a link to the new version in the track hub
                     turl = os.path.sep.join([URL_BASE, dst, tname + '.bw'])
                     cstr = ','.join(str(i) for i in t.color)
-                    tprops = [('priority',ti+1), ('parent',gname), ('track',tname), ('color',cstr), ('altColor',cstr), ('bigDataUrl',turl)]
-                    tprops = list(t.aprops.items()) + tprops
-                    tentry = DEF_TRACK_PROPS.format(tprops, '\t')
+                    props = [('parent',gname), ('track',tname), ('color',cstr), ('altColor',cstr), ('bigDataUrl',turl)]
+                    props = list(t.aprops.items()) + props
+                    tentry = DEF_TRACK_PROPS.format(props, '\t')
                     T.write(tentry + '\n\n')
         sp.call('chmod -R 777 %s' % dstpath, shell=True)
         return os.path.sep.join([URL_BASE, dst, 'hub.txt'])
-
 
 def parse_cond_props(condpropstr):
     # parse, e.g.: strain=BY+time=0:type=bars+color=10,40,190;strain=mut:visibility=hide'
     cps = []
     if condpropstr:
         for condprop in condpropstr.split(';'):
-            cp = condprop.split(':')
-            conds, props = ([], cp[0]) if len(cp) == 1 else (cp[0], cp[1])  # if no condition, condition list is empty
+            conds, props = condprop.split(':')
             conds = [c.split('=') for c in conds.split('+')] if conds else []
             props = [c.split('=') for c in props.split('+')] if props else []
             cps.append((conds, props))
@@ -306,9 +265,8 @@ def parse_args():
     p.add_argument('--full_name', '-fn', type=str, help='Hub full name', default=None)
     p.add_argument('--email', '-e', type=str, help='contact email', default='address@email.domain')
     p.add_argument('var_regexp', type=str,
-                   help=('Name matching python regexps that also defines the named variables. Semicolon-separated, '
-                         'first matching regexp counts.'
-                         'e.g. (?P<mod>\w+)_(?P<time>\d+)\.bw;(?P<mod>[\w-]+)_(?P<time>\d)\.bw'))
+                   help=('Name matching python regexp that also defines the variables. '
+                         'e.g. (?P<mod>\w+)_(?P<time>\d+)\.bw'))
     p.add_argument('--group_by', '-g', type=str, default=None,
                    help=('Variarble name(s) by which track are grouped, i.e. shown on the same track, '
                          'different shades of the same color'))
@@ -345,7 +303,7 @@ def parse_args():
     args.__dict__['group_by'] = args.group_by.split(',') if args.group_by is not None else []
     args.__dict__['order_by'] = [x.split(':') for x in args.order_by.split(';')] if args.order_by is not None else []
     args.__dict__['color_by'] = args.color_by.split(',') if args.color_by is not None else []
-    args.__dict__['var_regexp'] = [re.compile(x) for x in args.var_regexp.split(';')]
+    args.__dict__['var_regexp'] = re.compile(args.var_regexp)
     args.__dict__['track_props'] = parse_cond_props(args.track_props)
     if args.output is None: args.__dict__['output'] = args.name
     return args
@@ -353,14 +311,11 @@ def parse_args():
 
 def add_to_index(hubname, url):
     desc = raw_input('Please enter a hub description (html compatible, e.g. urls can be added as <a href="url">"link name"</a>):\n')
-    entry = ['',
-             '<tr>',
-             '<td> <a href="%s" target="_blank">%s</a></td>' % (url, hubname),
-             '<td>%s</td>' % desc,
-             '<td>%s</td>' % hubname,
-             '<td><a href="http://www.cs.huji.ac.il/labs/nirf/track_hubs/build_igv.php?trackDB_relpath={hn}/trackDB.txt&'
-             'filename={hn}">{hn}</a></td>'.format(hn=hubname),
-             '</tr>']
+    entry = ['  <tr>',
+             '    <td> <a href="%s">%s</a></td>' % (url, hubname),
+             '    <td>%s</td>' % desc,
+             '  <td>%s</td>' % hubname,
+             '  </tr>']
     original = []
     with open(INDEX_FILE) as F:
         last_tr = -1
@@ -378,15 +333,14 @@ if __name__ == '__main__':
     hub = Hub(name=args.name, full_name=args.full_name, email=args.email)
     hub.from_path(args.bw_path, args.var_regexp)
     if args.goc_file is not None:
-        hub.organize_by_goc(args.goc_file, args.order_by)
+        hub.organize_by_goc(args.goc_file)
+        hub.sort_tracks(args.order_by)
     else:
         hub.regroup_tracks(args.group_by)
         hub.sort_tracks(args.order_by)
         hub.color_tracks(args.colors, args.color_by)
     hub.update_track_props(args.track_props)
     url = hub.deploy(args.output)
-    if args.goc_file:
-        shutil.copy(args.goc_file, os.sep.join([TRACKS_CENTRAL, args.output, 'goc_file.tab']))
     sys.stderr.write('Hub available at %s\n' % url)
     if args.index:
         add_to_index(args.name, url)

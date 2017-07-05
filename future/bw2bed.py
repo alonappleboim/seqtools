@@ -1,12 +1,13 @@
 import sys
-import argparse
 import os
-from common.config import *
+sys.path.append(os.path.split(os.path.split(__file__)[0])[0])
+import argparse
 import subprocess as sp
+from common.config import *
 import shlex
 
 
-INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
+INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.5'
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     import subprocess as sp
     import os
@@ -28,7 +29,7 @@ def parse_fixedstep(input, out_f, cl):
     rm, csl, chr = 0, 0, None
     with open(input) as IN:
         for i, line in enumerate(IN):
-            if line.startswith('fixedStep'):
+            if line.startswith('fixedStep') or line.startswith('variableStep'):
                 rm += 1 # remove line from position count
                 c = line.strip().split(' ')[1].split('=')[1]
                 if c != chr: # new chromsome
@@ -38,11 +39,23 @@ def parse_fixedstep(input, out_f, cl):
             else:
                 val = float(line.strip())
                 if val > 0:
-                    pos = i-rm-csl+l
+                    pos = i - rm - csl + l
                     out_f.write('%s\t%i\t%.2f\n' % (chr, pos, val))
 
 
-def parse_bedgraph(input, out_f, cl):
+def parse_variablestep(input, out_f, cl):
+    rm, csl, chr = 0, 0, None
+    with open(input) as IN:
+        for line in IN:
+            if line.startswith('variableStep'):
+                chr = line.strip().split(' ')[1].split('=')[1]
+            else:
+                pos, val = line.strip().split('\t')
+                pos = int(pos)
+                out_f.write('%s\t%i\t%.2f\n' % (chr, pos, float(val)))
+
+
+def parse_bedgraph(input, out_f):
     with open(input) as IN:
         for i, line in enumerate(IN):
             if line.startswith('#bedGraph'): continue
@@ -58,7 +71,9 @@ def bw2bed(bw_in, cl, tmp_name, out_f):
     hdr = t.readline()
     t.close()
     if hdr.startswith('fixedstep'): parse_fixedstep(tmp_name, out_f, cl)
-    elif hdr.startswith('#bedGraph'): parse_bedgraph(tmp_name, out_f, cl)
+    elif hdr.startswith('variableStep'): parse_variablestep(tmp_name, out_f, cl)
+    elif hdr.startswith('#bedGraph'): parse_bedgraph(tmp_name, out_f)
+    else: raise IOError('unknown Wig format: %s' % hdr)
     os.remove(tmp_name)
 
 
