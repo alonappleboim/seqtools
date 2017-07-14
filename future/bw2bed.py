@@ -7,7 +7,7 @@ from common.config import *
 import shlex
 
 
-INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.5'
+INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     import subprocess as sp
     import os

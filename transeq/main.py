@@ -47,6 +47,7 @@ class FeatureCollection(OrderedDict):
                 n = feat.name[:i].lower()
                 if n in short_names: continue
                 feat.short_name = n
+                i += 1
                 break
         if feat.short_name is None:
             raise ValueError()

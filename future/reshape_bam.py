@@ -124,38 +124,6 @@ class Spike(SegmentTransform):
         return t
 
 
-# def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250]):
-#     bam_in = pysam.AlignmentFile(bam_path)
-#     chrlens = chr_lengths()
-#     vectors = []
-#     annot = []
-#     for line in annot_file:
-#         id, chr, pos, strand = line.strip().split(ANNOT_DELIM)
-#         annot.append(id)
-#         pos, strand = int(pos), (-1) ** (1 - (strand == '+'))
-#         is_rev = strand == -1
-#         fr, to = [pos + strand*x for x in win[::strand]]
-#         fd = abs(min(0, fr))  # >0 only in case that reached end of chromosome
-#         fr, to = max(0, fr), min(to, chrlens[chr])
-#         w = np.zeros(win[1] - win[0]+1)
-#         wl = len(w)
-#         for r in bam_in.fetch(chr, fr, to):
-#             if r.is_reverse == is_rev:
-#                 s = Segment(r)
-#                 add = transform(s)
-#                 if is_rev: add = add = add[::-1]
-#                 if strand == 1:
-#                     wfr, wto = s.fr - fr, s.to - fr
-#                 else:
-#                     wfr, wto = to - s.to, to - s.fr
-#                 sfr, sto = abs(min(wfr, 0)), len(s) - abs(min(len(w) - wto, 0))
-#                 wfr, wto = max(0, wfr), min(wto, wl)
-#                 w[fd+wfr:fd+wto] += add[sfr:sto]
-#         vectors.append(w)
-#     s = {'d': np.vstack(vectors), 'w': w, 'l': annot}
-#     sio.savemat(output_file, {out_name: s})
-
-
 def reshape(bam_path, annot_file, transform, out_name, output_file, win=[-500,250], is_paired=True, same_strand=True):
     bam_in = pysam.AlignmentFile(bam_path)
     chrlens = chr_lengths()
