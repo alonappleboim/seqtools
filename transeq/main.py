@@ -47,7 +47,6 @@ class FeatureCollection(OrderedDict):
                 n = feat.name[:i].lower()
                 if n in short_names: continue
                 feat.short_name = n
-                i += 1
                 break
         if feat.short_name is None:
             raise ValueError()
@@ -407,7 +406,7 @@ class ExperimentHandler(object):
         self.collect_input_fastqs()
         bcout = None
         if self.a.keep_nobarcode:
-            bcout = self.fastq_dir + os.sep + NO_BC_NAME + '.fastq.gz'
+            bcout = self.fastq_dir + os.sep + NO_BC_NAME + '.R1R2.fastq.gz'
         self.split_barcodes(no_bc=bcout)
 
         self.log(lg.INFO, 'Converting files...')
@@ -671,7 +670,7 @@ class ExperimentHandler(object):
                 awkin = sp.Popen(sh.split('head -%i' % nlines), stdin=awkin.stdout, stdout=sp.PIPE)
             awk1 = sp.Popen(sh.split('awk -F "\\t" ' + awk1p), stdin=awkin.stdout, stdout=sp.PIPE)
             awk2 = sp.Popen(sh.split('awk -F "\\t" ' + awk2p), stdin=awk1.stdout, stdout=sp.PIPE)
-            awkcmd = """awk -F "\\t" '{print $1"\\n"$3"\\n"$5"\\n"$7; print $2"\\n"4"\\n"$6"\\n"$8;}' """
+            awkcmd = """awk -F "\\t" '{print $1"\\n"$3"\\n"$5"\\n"$7; print $2"\\n"$4"\\n"$6"\\n"$8;}' """
             wfastq = sp.Popen(sh.split(awkcmd), stdin=awk2.stdout, stdout=sp.PIPE)
             gzip = sp.Popen(['gzip'], stdin=wfastq.stdout, stdout=outf)
             wfastq.wait() # to prevent data interleaving

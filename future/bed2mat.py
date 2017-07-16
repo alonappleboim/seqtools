@@ -4,7 +4,7 @@ import numpy as np
 from scipy import sparse
 import argparse
 
-
+SPARSE_PERCENT = 0.1
 INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
 if not sys.executable == INTERPRETER:  # divert to the "right" interpreter
     import subprocess as sp
@@ -44,7 +44,11 @@ def read_bed(bed_in):
 def write_mat(out_to, data, strand, meta, chr_lengths):
     s = {}
     for chr, (poss, vals) in data.items():
-        s[chr] = sparse.csc_matrix((vals, (poss, np.zeros(len(poss)))), shape=(chr_lengths[chr],1), dtype=float)
+        if len(poss)/chr_lengths[chr] < SPARSE_PERCENT:
+            s[chr] = sparse.csc_matrix((vals, (poss, np.zeros(len(poss)))), shape=(chr_lengths[chr],1), dtype=float)
+        else:
+            s[chr] = np.zeros(chr_lengths[chr])
+            s[chr][poss] = vals
     s['meta'] = meta
     s['strand'] = strand
     sio.savemat(out_to, mdict=dict(data=s))
