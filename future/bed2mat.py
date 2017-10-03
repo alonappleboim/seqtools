@@ -46,10 +46,13 @@ def write_mat(out_to, data, strand, meta, chr_lengths):
     for chr, (poss, vals) in data.items():
         if len(poss)/chr_lengths[chr] < SPARSE_PERCENT:
             s[chr] = sparse.csc_matrix((vals, (poss, np.zeros(len(poss)))), shape=(chr_lengths[chr],1), dtype=float)
+            sp = True
         else:
             s[chr] = np.zeros(chr_lengths[chr])
             s[chr][poss] = vals
+            sp = False
     s['meta'] = meta
+    s['is_sparse'] = sp
     s['strand'] = strand
     sio.savemat(out_to, mdict=dict(data=s))
 

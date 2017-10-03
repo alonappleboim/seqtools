@@ -495,7 +495,7 @@ class ExperimentHandler(object):
                             raise (ValueError(msg))
                         f.vals.add(v)
                         sample.fvals[f] = v
-                    if hash(sample) in [hash(s) for s in b2s.values()]:
+                    if sample in b2s.values():
                         msg = "2 samples (or more) seem to be identical - %s" % sample
                         self.log(lg.CRITICAL, msg)
                         raise (TypeError(msg))
