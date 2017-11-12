@@ -71,17 +71,19 @@ def cpv_iter(bw_in, chr_map, tmp_suff='.tmp'):
 
     tmp_name = bw_in + tmp_suff
     comm = '%s %s %s' % (BW2W, bw_in, tmp_name)
-    sp.Popen(shlex.split(comm)).communicate()
-    t = open(tmp_name)
-    hdr = t.readline()
-    t.close()
-    if hdr.startswith('fixedstep'): iter = parse_fixed_step
-    elif hdr.startswith('variableStep'): iter = parse_variable_step
-    elif hdr.startswith('#bedGraph'): iter = parse_bed_graph
-    else: raise IOError('unknown Wig format: %s' % hdr)
-    for cpv in iter(tmp_name, chr_map): yield cpv
-    os.remove(tmp_name)
-
+    _, err = sp.Popen(shlex.split(comm), stderr=sp.PIPE).communicate()
+    if not err:
+        t = open(tmp_name)
+        hdr = t.readline()
+        t.close()
+        if hdr.startswith('fixedstep'): iter = parse_fixed_step
+        elif hdr.startswith('variableStep'): iter = parse_variable_step
+        elif hdr.startswith('#bedGraph'): iter = parse_bed_graph
+        else: raise IOError('unknown Wig format: %s' % hdr)
+        for cpv in iter(tmp_name, chr_map): yield cpv
+        os.remove(tmp_name)
+    else:
+        sys.stderr.write('\terror (is it empty?): %s' % err)
 
 def organize_files(path, var_parsers):
     """

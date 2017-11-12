@@ -29,15 +29,15 @@ DEFAULT_CMAP = 'rainbow'
 env = '/cs/bd/tools/nflab_env/bin/activate_this.py'
 execfile(env, dict(__file__=env))
 
-TYPES = {'string': str, 'number': float}
+TYPES = {'str': str, 'num': float}
 
 URL_BASE = 'http://www.cs.huji.ac.il/labs/nirf/track_hubs'
 TRACKS_CENTRAL = '/cs/bd/track_hubs'
 INDEX_FILE = '/cs/bd/track_hubs/index.html'
 
 
-def shades(clr, N):
-    for i in range(N):
+def shades(clr, N, dark2light):
+    for i in range(N) if dark2light else range(N-1, -1, -1):
         yield [int((255 * i / N + gc) / 2) for gc in clr]
 
 
@@ -226,7 +226,7 @@ class Hub(object):
                                       for gvars in sorted(ordered.keys(), key=lambda x:TYPES[typ](dict(x)[var])))
         self.gtracks = ordered
 
-    def color_tracks(self, cmap_name, color_by):
+    def color_tracks(self, cmap_name, color_by, cord, gcord):
         if not color_by: color_by = list(self.grouped_by)
         for c in color_by: assert(c in self.grouped_by) # only outer-grouping variables can be in color_by
         ckeys, gkeys = {}, []
@@ -237,9 +237,11 @@ class Hub(object):
             if key in ckeys: continue
             ckeys[key] = len(ckeys)
         cmap = get_cmap(cmap_name, len(ckeys))
+        if cord is 'rev': cmap = np.flipud(cmap)
+        d2l = gcord is 'd2l'
         for key, (gvars, tracks) in zip(gkeys, self.gtracks.items()):
             gclr = cmap[ckeys[key]][:3]
-            for track, clr in zip(tracks, shades(gclr,len(tracks))): track.color = clr
+            for track, clr in zip(tracks, shades(gclr,len(tracks),d2l)): track.color = clr
 
     def deploy(self, dst):
         dstpath = os.path.abspath(TRACKS_CENTRAL + os.path.sep + dst)
@@ -310,14 +312,14 @@ def parse_args():
                          'first matching regexp counts.'
                          'e.g. (?P<mod>\w+)_(?P<time>\d+)\.bw;(?P<mod>[\w-]+)_(?P<time>\d)\.bw'))
     p.add_argument('--group_by', '-g', type=str, default=None,
-                   help=('Variarble name(s) by which track are grouped, i.e. shown on the same track, '
+                   help=('Variarble name(s) by which tracks are grouped, i.e. shown on the same panel, '
                          'different shades of the same color'))
     p.add_argument('--order_by', '-o', type=str, default=None,
                    help=('A list of variarbles and how to sort them. order of variables determines order in resulting'
-                         ' hub. e.g. "mod:str;time:int" will be first sorted by "mod"(string), then by "time"(number)'))
+                         ' hub. e.g. "mod:str;time:num" will be first sorted by "mod"(string), then by "time"(number)'))
     p.add_argument('--color_by', '-c', type=str, default=None,
                    help=('A comma-separated list by which colors are allocated. default is all variables'))
-    p.add_argument('--colors', type=str, default=DEFAULT_CMAP,
+    p.add_argument('--cmap', '-cm', type=str, default=DEFAULT_CMAP,
                    help=('A string corresponding to a matplotlib colormap'))
     p.add_argument('--goc_file', '-f', type=str, default=None,
                    help=('A path to a tab-delimited file with variable columns, and an RGB column. The variables are '
@@ -325,6 +327,10 @@ def parse_args():
                          'that are not present in the file are filtered out, and colors will be the group colors.'
                          'Replaces and overrides the group_by/order_by/color_by/colors options (not that inner-group '
                          'order is still used'))
+    p.add_argument('--group_color_ord', '-gco', type=str, default='l2d', choices=['l2d','d2l'],
+                   help='color order within groups (panel), light->dark or dark->light')
+    p.add_argument('--color_ord', '-co', type=str, default='fwd', choices=['fwd', 'rev'],
+                   help='color order between groups, forward or reverse')
     p.add_argument('--link', '-l', action='store_true',
                    help=('Whether original tracks should be replaced by sof links to newly copied files')) #TODO
     p.add_argument('--track_props', '-tp', type=str, default='',
@@ -382,7 +388,7 @@ if __name__ == '__main__':
     else:
         hub.regroup_tracks(args.group_by)
         hub.sort_tracks(args.order_by)
-        hub.color_tracks(args.colors, args.color_by)
+        hub.color_tracks(args.cmap, args.color_by, args.color_ord, args.group_color_ord)
     hub.update_track_props(args.track_props)
     url = hub.deploy(args.output)
     if args.goc_file:
