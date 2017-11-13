@@ -320,7 +320,8 @@ def parse_args():
     p.add_argument('--color_by', '-c', type=str, default=None,
                    help=('A comma-separated list by which colors are allocated. default is all variables'))
     p.add_argument('--cmap', '-cm', type=str, default=DEFAULT_CMAP,
-                   help=('A string corresponding to a matplotlib colormap'))
+                   help=('A string corresponding to a matplotlib colormap, or a path to a color map file'
+                         'consisting of a row per color, and tab dilimited RGB colors in integers (0-255)'))
     p.add_argument('--goc_file', '-f', type=str, default=None,
                    help=('A path to a tab-delimited file with variable columns, and an RGB column. The variables are '
                          'the grouping variables, the order is used to order the groups. Tracks with variable-values '
