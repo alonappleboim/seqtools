@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="70793cab-fe3e-4f97-b5ba-2deab1e7d020" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/future/build_hub.py" afterPath="$PROJECT_DIR$/future/build_hub.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/future/bwhub2mat.py" afterPath="$PROJECT_DIR$/future/bwhub2mat.py" />
     </list>
     <ignored path="transeq_pipeline.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -27,42 +25,9 @@
       <file leaf-file-name="call_pA.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pAseq/call_pA.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="765">
+            <state relative-caret-position="3570">
               <caret line="245" column="0" lean-forward="false" selection-start-line="245" selection-start-column="0" selection-end-line="245" selection-end-column="0" />
-              <folding>
-                <element signature="e#186#249#0" expanded="false" />
-                <element signature="e#627#1366#0" expanded="false" />
-                <element signature="e#1116#1304#0" expanded="false" />
-                <element signature="e#1184#1304#0" expanded="false" />
-                <element signature="e#1408#2167#0" expanded="false" />
-                <element signature="e#1706#1775#0" expanded="false" />
-                <element signature="e#1866#1941#0" expanded="false" />
-                <element signature="e#1973#2086#0" expanded="false" />
-                <element signature="e#2226#3442#0" expanded="false" />
-                <element signature="e#2371#2557#0" expanded="false" />
-                <element signature="e#2599#3442#0" expanded="false" />
-                <element signature="e#2705#2742#0" expanded="false" />
-                <element signature="e#2979#3092#0" expanded="false" />
-                <element signature="e#3016#3092#0" expanded="false" />
-                <element signature="e#3119#3232#0" expanded="false" />
-                <element signature="e#3156#3232#0" expanded="false" />
-                <element signature="e#3294#3395#0" expanded="false" />
-                <element signature="e#3483#5286#0" expanded="false" />
-                <element signature="e#5312#8156#0" expanded="false" />
-                <element signature="e#5347#5715#0" expanded="false" />
-                <element signature="e#5419#5568#0" expanded="false" />
-                <element signature="e#5466#5568#0" expanded="false" />
-                <element signature="e#5502#5568#0" expanded="false" />
-                <element signature="e#5595#5697#0" expanded="false" />
-                <element signature="e#5646#5697#0" expanded="false" />
-                <element signature="e#5761#6206#0" expanded="false" />
-                <element signature="e#5844#6158#0" expanded="false" />
-                <element signature="e#5954#6158#0" expanded="false" />
-                <element signature="e#6410#6798#0" expanded="false" />
-                <element signature="e#6884#7011#0" expanded="false" />
-                <element signature="e#7372#7506#0" expanded="false" />
-                <element signature="e#7843#7967#0" expanded="false" />
-              </folding>
+              <folding />
             </state>
           </provider>
         </entry>
@@ -70,7 +35,7 @@
       <file leaf-file-name="bwhub2mat.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/future/bwhub2mat.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="258">
+            <state relative-caret-position="1620">
               <caret line="159" column="43" lean-forward="false" selection-start-line="159" selection-start-column="43" selection-end-line="159" selection-end-column="43" />
               <folding>
                 <element signature="e#350#413#0" expanded="false" />
@@ -302,8 +267,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
-      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -346,6 +309,8 @@
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scope" />
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -687,7 +652,14 @@
       <option name="project" value="LOCAL" />
       <updated>1507021934467</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="minor updates to future functions">
+      <created>1510508183737</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1510508183737</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -699,10 +671,10 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1440" height="873" extended-state="6" />
+    <frame x="0" y="23" width="1440" height="873" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16666667" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17095852" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33791208" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
@@ -745,7 +717,8 @@
     <MESSAGE value="fixed a bug in keep no barcode feature (didn't print read 2)" />
     <MESSAGE value="adde" />
     <MESSAGE value="minor change in db parser" />
-    <option name="LAST_COMMIT_MESSAGE" value="minor change in db parser" />
+    <MESSAGE value="minor updates to future functions" />
+    <option name="LAST_COMMIT_MESSAGE" value="minor updates to future functions" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -891,13 +864,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2016.2/python_stubs/-1201949651/builtins.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="232">
-          <caret line="476" column="4" lean-forward="false" selection-start-line="476" selection-start-column="4" selection-end-line="476" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2016.2/python_stubs/-1201949651/builtins.py" />
     <entry file="file://$PROJECT_DIR$/common/slurm.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="269">
@@ -1058,42 +1025,9 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/pAseq/call_pA.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="765">
+        <state relative-caret-position="3570">
           <caret line="245" column="0" lean-forward="false" selection-start-line="245" selection-start-column="0" selection-end-line="245" selection-end-column="0" />
-          <folding>
-            <element signature="e#186#249#0" expanded="false" />
-            <element signature="e#627#1366#0" expanded="false" />
-            <element signature="e#1116#1304#0" expanded="false" />
-            <element signature="e#1184#1304#0" expanded="false" />
-            <element signature="e#1408#2167#0" expanded="false" />
-            <element signature="e#1706#1775#0" expanded="false" />
-            <element signature="e#1866#1941#0" expanded="false" />
-            <element signature="e#1973#2086#0" expanded="false" />
-            <element signature="e#2226#3442#0" expanded="false" />
-            <element signature="e#2371#2557#0" expanded="false" />
-            <element signature="e#2599#3442#0" expanded="false" />
-            <element signature="e#2705#2742#0" expanded="false" />
-            <element signature="e#2979#3092#0" expanded="false" />
-            <element signature="e#3016#3092#0" expanded="false" />
-            <element signature="e#3119#3232#0" expanded="false" />
-            <element signature="e#3156#3232#0" expanded="false" />
-            <element signature="e#3294#3395#0" expanded="false" />
-            <element signature="e#3483#5286#0" expanded="false" />
-            <element signature="e#5312#8156#0" expanded="false" />
-            <element signature="e#5347#5715#0" expanded="false" />
-            <element signature="e#5419#5568#0" expanded="false" />
-            <element signature="e#5466#5568#0" expanded="false" />
-            <element signature="e#5502#5568#0" expanded="false" />
-            <element signature="e#5595#5697#0" expanded="false" />
-            <element signature="e#5646#5697#0" expanded="false" />
-            <element signature="e#5761#6206#0" expanded="false" />
-            <element signature="e#5844#6158#0" expanded="false" />
-            <element signature="e#5954#6158#0" expanded="false" />
-            <element signature="e#6410#6798#0" expanded="false" />
-            <element signature="e#6884#7011#0" expanded="false" />
-            <element signature="e#7372#7506#0" expanded="false" />
-            <element signature="e#7843#7967#0" expanded="false" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -1184,7 +1118,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/future/bwhub2mat.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="258">
+        <state relative-caret-position="1620">
           <caret line="159" column="43" lean-forward="false" selection-start-line="159" selection-start-column="43" selection-end-line="159" selection-end-column="43" />
           <folding>
             <element signature="e#350#413#0" expanded="false" />
