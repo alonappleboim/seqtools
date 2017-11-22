@@ -364,7 +364,6 @@ def add_to_index(hubname, url):
              '<tr>',
              '<td> <a href="%s" target="_blank">%s</a></td>' % (url, hubname),
              '<td>%s</td>' % desc,
-             '<td>%s</td>' % hubname,
              '<td><a href="http://www.cs.huji.ac.il/labs/nirf/track_hubs/build_igv.php?trackDB_relpath={hn}/trackDB.txt&'
              'filename={hn}">{hn}</a></td>'.format(hn=hubname),
              '</tr>']

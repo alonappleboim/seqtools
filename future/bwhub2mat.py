@@ -11,9 +11,12 @@ from scipy import sparse
 import argparse
 from collections import OrderedDict
 
+CHRMAP = '/cs/wetlab/genomics/scer/genome/sacCer3_ordered.sizes'
+if not os.path.exists(CHRMAP):
+    CHRMAP =  '/Users/user/gdrive_huji/scer_data/genome/sacCer3.ordered.chr.size'
 BW2W = '/cs/bd/tools/bigWigToWig'
 if not os.path.exists(BW2W):
-    BW2W = '/Users/user/nflab_scripts/Shell/bigWigToWig'
+    BW2W = '/Users/user/nflab_scripts/shell/bigWigToWig'
 
 # sys.path.append(os.path.split(os.path.split(__file__)[0])[0])
 # INTERPRETER = '/cs/bd/tools/nflab_env/bin/python3.4'
@@ -85,6 +88,7 @@ def cpv_iter(bw_in, chr_map, tmp_suff='.tmp'):
     else:
         sys.stderr.write('\terror (is it empty?): %s' % err)
 
+
 def organize_files(path, var_parsers):
     """
     Parse the files in path in light of given regexps
@@ -152,7 +156,6 @@ def build_matlab_objects(vars, file_list, var_lists, args):
                       * c - chromosome names, in order of "d"
     """
     S, C = len(file_list), len(args.chr_map)
-    # init = sparse.csc_matrix if as_sparse else np.zeros
     d = [np.zeros((L,S)) for L in args.chr_map.values()] if not args.sparse else [([],[],[]) for _ in args.chr_map]
     out = {'d': d,
            'l': {'samples': np.asarray([os.path.split(f)[1][:-3] for f in file_list], dtype='object'),
@@ -181,11 +184,12 @@ def build_matlab_objects(vars, file_list, var_lists, args):
 
 
 def reorder_samples(file_list, var_lists, vars, args):
-    for v in args.order_by[::-1]:
-        ord = np.argsort(var_lists[v],kind='mergesort')
+    for v, type in args.order_by[::-1]:
+        vals = [float(vv) for vv in var_lists[v]] if type == 'num' else var_lists[v]
+        ord = np.argsort(vals,kind='mergesort')
         var_lists = {v: [vl[i] for i in ord] for v, vl in var_lists.items()}
         file_list = [file_list[i] for i in ord]
-    vars = OrderedDict([(v,sorted(vars[v])) for v in args.order_by])
+    vars = OrderedDict([(v,sorted(vars[v])) for v, _ in args.order_by])
     return file_list, var_lists, vars
 
 
@@ -230,8 +234,9 @@ def parse_args():
                          'e.g. (?P<mod>\w+)_(?P<time>\d+)\.bw;(?P<mod>[\w-]+)_(?P<time>\d)\.bw '
                          'If not given, the assumed structure is <varname>-<varval>(_<varname>-<varval>)*bw'))
     p.add_argument('--order_by', '-ob', type=str, default=None,
-                   help=('comm-separated list of variables (as in var_regexp)'))
-    p.add_argument('--chr_map', '-cm', type=str, default='/cs/wetlab/genomics/scer/genome/sacCer3_ordered.sizes',
+                   help=('A list of variarbles and how to sort them. Order of variables determines order in resulting'
+                         ' hub. e.g. "mod:str;time:num" will be first sorted by "mod"(string), then by "time"(number)'))
+    p.add_argument('--chr_map', '-cm', type=str, default=CHRMAP,
                    help=('A list of chr1_name:chr1_length;chr2_name:chr2_length... for the chromosomes in input bw '
                          'files, the given order will determine the order in the output cell array. If a valid file '
                          'path is given, the data is read from file, one line per chr, tab delimited name\tlength.'))
@@ -241,17 +246,17 @@ def parse_args():
     else:
         args.__dict__['output'] = open(args.__dict__['output'], 'wb')
     args.__dict__['chr_map'] = parse_chrmap(args.chr_map)
-    if args.order_by: args.__dict__['order_by'] = args.order_by.split(',')
+    if args.order_by: args.__dict__['order_by'] = [x.split(':') for x in args.order_by.split(';')] if args.order_by is not None else []
     if not args.var_regexp or args.var_regexp is None:
         ve, vord = build_default_regexp(args.path)
         args.__dict__['var_regexp'] = [ve]
-        if args.order_by is None: args.__dict__['order_by'] = vord
+        if args.order_by is None: args.__dict__['order_by'] = [(v, 'str') for v in vord]
     else:
         args.__dict__['var_regexp'] = [re.compile(x) for x in args.var_regexp.split(';')]
         if args.order_by is None:
             vars = set([])
             for ve in args.var_regexp: vars |= set(ve.groupindex.keys())
-            args.__dict__['order_by'] = list(vars)
+            if args.order_by is None: args.__dict__['order_by'] = [(v, 'str') for v in vars]
     return args
 
 
