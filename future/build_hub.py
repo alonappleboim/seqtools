@@ -340,7 +340,8 @@ def parse_args():
                          '"conditions:props;conditions:props.." clause. by default props are applied to all tracks, '
                          'unless they did not comply with condition. Conditions are handled in order, so if some '
                          'property of a track is changed by several conditions the last condition wins. For example:\n'
-                         '"strain=BY+time=0:graphType=bar+color=10,40,190;strain=mut:visibility=hide') % DEF_TRACK_PROPS.format())
+                         '"strain=BY+time=0:graphType=bar+color=10,40,190;strain=mut:visibility=hide;'
+                         'str=c:negateValues=on') % DEF_TRACK_PROPS.format())
     p.add_argument('--not_verbose', '-nv', action='store_true',
                    help=('Whether the hub description file should not be printed to standard output.'))
     p.add_argument('--genome_assembly', '-ga', type=str, default='sacCer3',
@@ -376,7 +377,7 @@ def add_to_index(hubname, url):
     updated = original[:last_tr-1] + entry + original[last_tr:]
     with open(INDEX_FILE,'w') as F:
         F.write('\n'.join(updated))
-    sys.stderr.write('updated %s!' % INDEX_FILE)
+    sys.stderr.write('updated %s!\n' % INDEX_FILE)
 
 
 if __name__ == '__main__':

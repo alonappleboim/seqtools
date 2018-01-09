@@ -167,7 +167,7 @@ def build_matlab_objects(vars, file_list, var_lists, args):
         if args.verbose:
             sys.stderr.write('processing %s...\n' % f)
         fdata = bw2py(f, args.chr_map)
-        for chi, (ch, _) in enumerate(args.chr_map.iteritems()):
+        for chi, (ch, _) in enumerate(args.chr_map.items()):
             if ch not in fdata: continue
             pos, vals = fdata[ch]
             if not args.sparse:
@@ -177,7 +177,7 @@ def build_matlab_objects(vars, file_list, var_lists, args):
                 out['d'][chi][1].extend([si]*len(pos)) #cols
                 out['d'][chi][2].extend(vals) #values
     if args.sparse:
-        for chi, (chr, chL) in enumerate(args.chr_map.iteritems()):
+        for chi, (chr, chL) in enumerate(args.chr_map.items()):
             R, C, V = out['d'][chi]
             out['d'][chi] = sparse.csc_matrix((V, (R, C)), shape=(chL,S), dtype=float)
     return {args.outname: out}

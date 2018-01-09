@@ -73,7 +73,7 @@ def parse_tracks(input, addpath):
                 if 'parent' in currt:
                     if t['name'] != currt['parent']:
                         names = (currt['name'], t['name'])
-                        raise ValueError('track misorder %s inside %s with no parent relationship' % names)
+                        raise ValueError('track disorder %s inside %s with no parent relationship' % names)
                     t['subtracks'].append(currt)
                 else:
                     if t: yield t
