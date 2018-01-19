@@ -6,11 +6,20 @@
 import sys
 import os
 import re
+import pickle
 import scipy.io as sio
 import numpy as np
 from scipy import sparse
 import argparse
 from collections import OrderedDict
+
+
+def isint(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 
 def organize_files(path, var_parsers):
@@ -104,75 +113,81 @@ def reorder_samples(file_list, var_lists, vars, args):
 
 
 def merge_general_stats(files):
-    lg = ['total', 'nrm-aligned', 'rejected', 'converted', 'unconverted', 'nrm-dup', 'dup']
-    total, naln, rej, cnv, unc, ndup, dup = [], [], [], [], [], [], []
-    for f in files['nrm-align']:
+
+    def sum_dups(file):
+        s = 0
         try:
-            with open(f) as F:
-                for i, l in enumerate(F):
-                    if i == 0: total.append(int(l.strip().split(' ')[0]))
-                    if 'overall' in l: naln.append(float(l.split(' ')[0].replace('%','')))
+            with open(file) as F:
+                for l in F:
+                    u, c = [int(x) for x in l.strip().split('\t')]
+                    s += (u - 1) * c
         except IOError as e:
-            sys.stderr.write(str(e)+'\n')
-            total.append(0)
-            naln.append(0)
-    for f in files['cl']:
+            sys.stderr.write(str(e) + '\n')
+        return s
+
+    def parse_align_stats(file, buffer):
+        try:
+            with open(file) as F:
+                for l in F:
+                    ''' example of a file
+                    1194660 reads; of these:
+                    1194660 (100.00%) were unpaired; of these:
+                    246134 (20.60%) aligned 0 times
+                    742514 (62.15%) aligned exactly 1 time
+                    206012 (17.24%) aligned >1 times
+                    79.40% overall alignment rate
+                    '''
+                    l = l.strip()
+                    if "reads; of these" in l: buffer[0] = float(l.split(' ')[0])
+                    if "aligned 0 times" in l: buffer[1] = float(l.split(' ')[0])
+                    if "aligned exactly" in l: buffer[2] = float(l.split(' ')[0])
+                    if "aligned >1" in l: buffer[3] = float(l.split(' ')[0])
+                    if 'overall' in l: buffer[4] = float(l.split(' ')[0].replace('%', ''))
+        except (IOError, ValueError) as e:
+            sys.stderr.write(str(e) + '\n')
+
+    nF = len(files['nrm-align'])
+    l_align = np.zeros((nF, 6))  # lactis alignment: total, not aligned, unique, multiple, overall, dup
+    n_align = np.zeros((nF, 6)) # normal alignment: total, not aligned, unique, multiple, overall, dup
+    t_align = np.zeros((nF, 6)) # 3-letter alignment: total, not aligned, unique, multiple, overall, dup
+    rcu = np.zeros((nF, 3))
+    rcu_ord = ['rejected', 'converted', 'unconverted']
+    for i, f in enumerate(files['lac-align']): parse_align_stats(f, l_align[i, :])
+    for i, f in enumerate(files['nrm-align']): parse_align_stats(f, n_align[i,:])
+    for i, f in enumerate(files['nrm-dhist']): n_align[i, 5] = sum_dups(f)
+    for i, f in enumerate(files['tlg-align']): parse_align_stats(f, t_align[i, :])
+    for i, f in enumerate(files['tlg-dhist']): t_align[i, 5] = sum_dups(f)
+    for i, f in enumerate(files['cl']):
         try:
             with open(f) as F:
                 for l in F:
-                    if l.startswith('converted'): cnv.append(int(l.split('\t')[1]))
-                    if l.startswith('unconverted'): unc.append(int(l.split('\t')[1]))
-                    if l.startswith('rejected'): rej.append(int(l.split('\t')[1]))
+                    n, v = l.split('\t')
+                    j = rcu_ord.index(n)
+                    rcu[i,j] = float(v)
         except IOError as e:
             sys.stderr.write(str(e)+'\n')
-            cnv.append(0)
-            unc.append(0)
-            rej.append(0)
-    for f in files['tlg-dhist']:
-        c = 0
-        try:
-            with open(f) as F:
-                for l in F:
-                    if l.startswith('1'): continue
-                    c += int(l.split('\t')[1])
-        except IOError as e:
-            sys.stderr.write(str(e)+'\n')
-        dup.append(c)
-    for f in files['nrm-dhist']:
-        c = 0
-        try:
-            with open(f) as F:
-                for l in F:
-                    if l.startswith('1'): continue
-                    c += int(l.split('\t')[1])
-        except IOError as e:
-            sys.stderr.write(str(e)+'\n')
-        ndup.append(c)
-    d = np.asarray([total, naln, rej, cnv, unc, ndup, dup]).T
-    return np.asarray(lg,dtype='object'), d
+    d = OrderedDict()
+    d['total'] = n_align[:,0]
+    a_ord = ['not_aligned', 'unique', 'multiple', 'overall', 'dup']
+    for i, name in enumerate(a_ord):
+        if i < 6:
+            d['lac_align_' + name] = l_align[:, i + 1]
+        d['align_' + name] = n_align[:, i + 1]
+        d['cnv_align_' + name] = t_align[:, i + 1]
+    for i, name in enumerate(rcu_ord): d[name] = rcu[:, i]
+    return d
 
 
 def merge_t_stats(files):
-    lg = ['dim1=observed', 'dim2=converted', 'dim3=ordered-samples']
-    samples = []
-    mxo, mxc = 0, 0
+    d = []
     for i, f in enumerate(files):
         try:
-            d = np.loadtxt(f, skiprows=1, dtype=int)
-            if d.shape[0] == 0: raise IOError("%s is an empty file" % f)
-            if len(d.shape) == 1: d = d.reshape([1, 3])
-            mxo = max(mxo, max(d[:, 0]))
-            mxc = max(mxc, max(d[:, 1]))
-            samples.append(d)
+            d.append(np.loadtxt(f, skiprows=1, dtype=float))
         except IOError as e:
             sys.stderr.write(str(e)+'\n')
-            samples.append(None)
-    d = np.zeros([mxo+1,mxc+1,i+1], dtype=float)
-    for i, s in enumerate(samples):
-        if s is None: continue
-        si = i*np.ones(s.shape[0],dtype=int)
-        d[s[:, 0], s[:, 1], si] = s[:, 2].astype(float)
-    return np.asarray(lg,dtype='object'), d
+            d.append(np.zeros((0, 0)))
+    lg = np.asarray(['observed', 'converted', 'count'], dtype='object')
+    return lg, d
 
 
 def merge_dup_stats(files):
@@ -196,7 +211,7 @@ def merge_dup_stats(files):
 
 
 def merge_mut_stats(files):
-    lg = {'alphabt': np.asarray(['A','C','G','T','N'],dtype='object'),
+    lg = {'alphabet': np.asarray(['A','C','G','T','N'],dtype='object'),
           'dims': np.asarray(['ref','obs','strand','samples'], dtype='object'),
           'strand': np.asarray(['W','C'], dtype='object')}
     amap = {'A':0,'C':1,'G':2,'T':3,'N':4}
@@ -214,6 +229,22 @@ def merge_mut_stats(files):
     return lg, d
 
 
+def merge_ahists(files):
+    lg = np.asarray(['#A','cnt'],dtype='object')
+    d = {}
+    for i, f in enumerate(files):
+        try:
+            with open(f) as F:
+                for l in F:
+                    n, c = (int(x) for x in l.strip().split('\t'))
+                    if n not in d: d[n] = [0]*len(files)
+                    d[n][i] = c
+        except IOError as e:
+            sys.stderr.write(str(e)+'\n')
+    d = np.asarray([d[i] for i in range(len(d))], dtype='float')
+    return lg, d
+
+
 def collect_stats(index_files, var_lists, vars):
     files = {}
     for IF in index_files:
@@ -222,12 +253,13 @@ def collect_stats(index_files, var_lists, vars):
             if ftype not in files: files[ftype] = []
             files[ftype].append(fpath)
     stats = {}
-    stats['general'] = {}
-    stats['general']['l'], stats['general']['d'] = merge_general_stats(files)
+    stats['general'] = merge_general_stats(files)
     stats['read_t'] = {}
     stats['read_t']['l'], stats['read_t']['d'] = merge_t_stats(files['rt'])
     stats['genomic_t'] = {}
     stats['genomic_t']['l'], stats['genomic_t']['d'] = merge_t_stats(files['gt'])
+    stats['polya_hist'] = {}
+    stats['polya_hist']['l'], stats['polya_hist']['d'] = merge_ahists(files['ah'])
     stats['ndup'] = {}
     stats['ndup']['l'], stats['ndup']['d'] = merge_dup_stats(files['nrm-dhist'])
     stats['dup'] = {}
@@ -238,8 +270,22 @@ def collect_stats(index_files, var_lists, vars):
     stats['l'] = {'samples': np.asarray([os.path.split(f)[1][:-len('.index')] for f in index_files], dtype='object'),
                   'sample_vars': {v: np.asarray(var_lists[v],dtype='object') for v in vars.keys()},
                   'vars': {v : np.asarray(vals, dtype='object') for v, vals in vars.items()}}
+    return files, stats
 
-    return stats
+
+def collect_pconv_fit(files):
+    d = np.stack([np.loadtxt(f) for f in files['tbino_fit']], dim=2)
+    fit = pickle.loads(open(f).readline().replace('#',''))
+    fit['d'] = d
+    return fit
+
+
+for f in files:
+
+def fit_params(files, stats):
+    fit = {}
+    fit['p_conv'] = collect_fit_params(files)
+    return fit
 
 
 def parse_args():
@@ -299,8 +345,9 @@ if __name__ == '__main__':
     vars, file_list, var_lists = organize_files(args.stats_dir, args.var_regexp)
     file_list, var_lists, vars = reorder_samples(file_list, var_lists, vars, args)
     stats = collect_stats(file_list, var_lists, vars)
+    fit = fit_params(stats)
     t_mat = sio.loadmat(args.t_mat)
     cov_mat = sio.loadmat(args.cov_mat)
-    mdict = {args.outname:{'cov' : cov_mat['cov4tU'], 't' : t_mat['Ts4tU'], 'stats' : stats}}
+    mdict = {args.outname:{'cov': cov_mat['cov4tU'], 't': t_mat['Ts4tU'], 'stats': stats}}
     sio.savemat(args.output, mdict)
 
