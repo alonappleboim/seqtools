@@ -53,6 +53,7 @@ def organize_files(path, var_parsers):
         for var, val in s_dict.items():
             if val not in vars[var]: vars[var].append(val)
         file_list.append(fpath)
+    sys.stderr.write('Processing %i index files.\n' % len(file_list))
     return vars, file_list, var_lists
 
 
@@ -147,12 +148,14 @@ def merge_general_stats(files):
             sys.stderr.write(str(e) + '\n')
 
     nF = len(files['nrm-align'])
-    l_align = np.zeros((nF, 6))  # lactis alignment: total, not aligned, unique, multiple, overall, dup
-    n_align = np.zeros((nF, 6)) # normal alignment: total, not aligned, unique, multiple, overall, dup
-    t_align = np.zeros((nF, 6)) # 3-letter alignment: total, not aligned, unique, multiple, overall, dup
+    p_align = np.zeros((nF, 5))  # preliminary alignment, just for total reads
+    s_align = np.zeros((nF, 5))  # spike-in alignment: total, not aligned, unique, multiple, overall
+    n_align = np.zeros((nF, 6))  # normal alignment: total, not aligned, unique, multiple, overall, dup
+    t_align = np.zeros((nF, 6))  # 3-letter alignment: total, not aligned, unique, multiple, overall, dup
     rcu = np.zeros((nF, 3))
     rcu_ord = ['rejected', 'converted', 'unconverted']
-    for i, f in enumerate(files['lac-align']): parse_align_stats(f, l_align[i, :])
+    for i, f in enumerate(files['prelim-align']): parse_align_stats(f, p_align[i, :])
+    for i, f in enumerate(files['spk-align']): parse_align_stats(f, s_align[i, :])
     for i, f in enumerate(files['nrm-align']): parse_align_stats(f, n_align[i,:])
     for i, f in enumerate(files['nrm-dhist']): n_align[i, 5] = sum_dups(f)
     for i, f in enumerate(files['tlg-align']): parse_align_stats(f, t_align[i, :])
@@ -167,12 +170,15 @@ def merge_general_stats(files):
         except IOError as e:
             sys.stderr.write(str(e)+'\n')
     d = OrderedDict()
-    d['total'] = n_align[:,0]
+    # taking only "total" reads since this is only a preliminary
+    # alignment to filter out spike-in aligned reads:
+    d['total'] = p_align[:, 0]
+    # taking "not aligned" reads since this is alignment of spike-in aligned
+    # reads to s.cer, i.e. we want only reads that DO NOT align to cerevisiae:
+    d['spk_only'] = s_align[:, 1]
     a_ord = ['not_aligned', 'unique', 'multiple', 'overall', 'dup']
     for i, name in enumerate(a_ord):
-        if i < 6:
-            d['lac_align_' + name] = l_align[:, i + 1]
-        d['align_' + name] = n_align[:, i + 1]
+        d['align_' + name] = n_align[:, i + 1] # i+1 -> skip total, which is first in align stats
         d['cnv_align_' + name] = t_align[:, i + 1]
     for i, name in enumerate(rcu_ord): d[name] = rcu[:, i]
     return d
@@ -187,27 +193,42 @@ def merge_t_stats(files):
             sys.stderr.write(str(e)+'\n')
             d.append(np.zeros((0, 0)))
     lg = np.asarray(['observed', 'converted', 'count'], dtype='object')
-    return lg, d
+    return lg, np.array(d, dtype='object')
 
 
 def merge_dup_stats(files):
-    lg = ['dim2=dup-hist','dim1=ordered-samples']
-    samples = []
-    mxd = 0
+    d = []
     for i, f in enumerate(files):
         try:
-            d = np.loadtxt(f, dtype=int)
-            if len(d.shape) == 1: d = d.reshape([1, 2])
-            samples.append(d)
-            mxd = max(mxd, max(d[:, 0]))
+            d.append(np.loadtxt(f, dtype=float))
         except IOError as e:
-            sys.stderr.write(str(e)+'\n')
-            samples.append(None)
-    d = np.zeros([mxd+1,i+1], dtype=float)
-    for i, s in enumerate(samples):
-        if s is None: continue
-        d[s[:, 0], i] = s[:, 1].astype(float)
-    return np.asarray(lg,dtype='object'), d
+            sys.stderr.write(str(e) + '\n')
+            d.append(np.array([]))
+    lg = np.asarray(['counts', 'unique molecules'], dtype='object')
+    return lg, d
+
+
+def merge_annotation_counts(files, annot_file):
+    lg = {}
+    try:
+        # parse tts file for legend
+        afile = open(annot_file)
+        hdr = afile.readline().strip().split(' ')
+        lg['W'] = np.array([float(hdr[1]), float(hdr[2])])
+        lg['acc'] = np.asarray([line.strip().split('\t')[3] for line in afile], dtype='object')
+        N = len(lg['acc'])
+
+        # and iterate over all count files to merge them
+        d = np.zeros((N, len(files), 3))
+        for fi, f in enumerate(files):
+            fd = np.loadtxt(f, dtype=int, skiprows=1)
+            for ti in range(3):
+                d[fd[:,0]-1, fi, ti] = fd[:,ti+1]
+        lg['data_types'] = np.asarray(open(f).readline().strip().split('\t')[1:], dtype='object')
+    except IOError as e:
+        sys.stderr.write(str(e) + '\n')
+        d = np.zeros((0, 0))
+    return {'l':lg, 'd':d}
 
 
 def merge_mut_stats(files):
@@ -231,27 +252,22 @@ def merge_mut_stats(files):
 
 def merge_ahists(files):
     lg = np.asarray(['#A','cnt'],dtype='object')
-    d = {}
+    ds, mxd = [], 0
     for i, f in enumerate(files):
         try:
             with open(f) as F:
-                for l in F:
-                    n, c = (int(x) for x in l.strip().split('\t'))
-                    if n not in d: d[n] = [0]*len(files)
-                    d[n][i] = c
+                fd = np.loadtxt(f, dtype=int)
+                ds.append(fd)
+                mxd = max(mxd, fd[:,0].max())
         except IOError as e:
             sys.stderr.write(str(e)+'\n')
-    d = np.asarray([d[i] for i in range(len(d))], dtype='float')
+    d = np.zeros((mxd, len(files)))
+    for i, di in enumerate(ds):
+        d[di[:,0]-1, i] = di[:,1]
     return lg, d
 
 
-def collect_stats(index_files, var_lists, vars):
-    files = {}
-    for IF in index_files:
-        for line in open(IF):
-            ftype, fpath = line.rstrip().split(':')
-            if ftype not in files: files[ftype] = []
-            files[ftype].append(fpath)
+def collect_stats(files, var_lists, vars):
     stats = {}
     stats['general'] = merge_general_stats(files)
     stats['read_t'] = {}
@@ -267,25 +283,34 @@ def collect_stats(index_files, var_lists, vars):
     stats['snp'] = {}
     stats['snp']['l'], stats['snp']['d'] = merge_mut_stats(files['mut'])
 
-    stats['l'] = {'samples': np.asarray([os.path.split(f)[1][:-len('.index')] for f in index_files], dtype='object'),
+    stats['l'] = {'samples': np.asarray([os.path.split(f)[1][:-len('.index')] for f in files['index']], dtype='object'),
                   'sample_vars': {v: np.asarray(var_lists[v],dtype='object') for v in vars.keys()},
                   'vars': {v : np.asarray(vals, dtype='object') for v, vals in vars.items()}}
-    return files, stats
+    return stats
 
 
 def collect_pconv_fit(files):
-    d = np.stack([np.loadtxt(f) for f in files['tbino_fit']], dim=2)
-    fit = pickle.loads(open(f).readline().replace('#',''))
+    d = np.stack([np.loadtxt(f) for f in files], axis=2)
+    fit = pickle.loads(open(f).readline().replace('#','').strip().replace(';','\n'))
     fit['d'] = d
     return fit
 
 
-for f in files:
-
 def fit_params(files, stats):
     fit = {}
-    fit['p_conv'] = collect_fit_params(files)
+    fit['p_conv'] = collect_pconv_fit(files)
     return fit
+
+
+def file_map(file_list):
+    fmap = {'index':[]}
+    for IF in file_list:
+        fmap['index'].append(IF)
+        for line in open(IF):
+            ftype, fpath = line.rstrip().split(':')
+            if ftype not in fmap: fmap[ftype] = []
+            fmap[ftype].append(fpath)
+    return fmap
 
 
 def parse_args():
@@ -305,9 +330,9 @@ def parse_args():
 
     p = argparse.ArgumentParser()
     p.add_argument('--stats_dir', '-sd', type=str, help='path to statistics directory', default='STATS')
-    p.add_argument('--cov_mat', '-cm', type=str, help='path to Matlab coverage matrix', default='tmp/cov.mat')
-    p.add_argument('--t_mat', '-tm', type=str, help='path to Matlab genomic T statistics matrix', default='tmp/t.mat')
     p.add_argument('--output', '-o', type=str, default=None, help='output file name, default is stdout')
+    p.add_argument('--annot_file', '-af', type=str, default='STATS/tts_w.bed',
+                   help='the bed file used to count reads into annotations.')
     p.add_argument('--outname', '-on', type=str, default='tU', help='output struct name, default is tU')
     p.add_argument('--var_regexp', '-ve', type=str, default=None,
                    help=('Name matching python regexps that also defines the named variables. Semicolon-separated, '
@@ -344,10 +369,9 @@ if __name__ == '__main__':
     args = parse_args()
     vars, file_list, var_lists = organize_files(args.stats_dir, args.var_regexp)
     file_list, var_lists, vars = reorder_samples(file_list, var_lists, vars, args)
-    stats = collect_stats(file_list, var_lists, vars)
-    fit = fit_params(stats)
-    t_mat = sio.loadmat(args.t_mat)
-    cov_mat = sio.loadmat(args.cov_mat)
-    mdict = {args.outname:{'cov': cov_mat['cov4tU'], 't': t_mat['Ts4tU'], 'stats': stats}}
-    sio.savemat(args.output, mdict)
+    fmap = file_map(file_list)
+    stats = collect_stats(fmap, var_lists, vars)
+    fit = fit_params(fmap['tbino_fit'], stats)
+    acnt = {} if 'annot_cnt' not in fmap else merge_annotation_counts(fmap['annot_cnt'], args.annot_file)
+    sio.savemat(args.output, {args.outname: dict(fit=fit, stats=stats, acnt=acnt)})
 

@@ -45,6 +45,6 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     phat, params = fit_truncated_binomial(args.input, ts=args.ts, poiss_noise=args.poiss_noise, N=args.N)
-    hdr = pickle.dumps(params)
+    hdr = pickle.dumps(params).replace('\n',';')
     np.savetxt(args.output,phat,header=hdr)
 
