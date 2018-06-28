@@ -33,7 +33,7 @@ fq="fastq/"$s".fastq.gz";
 cat tmp/hd*/$s* | awk -F "\t" '{print "@umi:"substr($4,8,8)"\n"$3"\n+\n"$7}' | gzip > "$fq"
 
 if [ "$SPK_IDX" != "0" ]; then
-  echo "count and remove spike-in reads..."
+  echo "  count and remove spike-in reads..."
   spk_align="STATS/"$s".spk.align.stats";
   prelim_align="STATS/"$s".prelim.align.stats";
   tmp_bam="tmp/"$s".tmp.bam";
@@ -67,6 +67,7 @@ echo "  align to 3 letter genome and split to rejected/unconverted/converted BAM
 bam_cnv="BAM/"$s"_mod-cnv.bam"; sam_cnv="tmp/"$s"_cnv.sam";
 bam_unc="BAM/"$s"_mod-unc.bam"; sam_unc="tmp/"$s"_unc.sam";
 bam_rej="BAM/"$s"_mod-rej.bam"; sam_rej="tmp/"$s"_rej.sam";
+cnv_bed="tmp/"$s"_cnv.bed";
 bam_list["cnv"]=$bam_cnv;
 bam_list["unc"]=$bam_unc;
 bam_list["rej"]=$bam_rej;
@@ -100,9 +101,11 @@ stts_files["tlg-dhist"]=$tlg_dhist;
 zcat $fq_nspk | paste - - - - | awk -F "\t" -f $F2A  -v stripc_file=$sc -v ahist_file=$ah |\
 bowtie2 -p 8 -U - -x $TLG 2> $tlg_align | samtools sort | samtools view |\
 awk -f $AS2S | awk -f $RMD_3PH -v dhist_file=$tlg_dhist |\
-awk -f $PTS -v rej_sam=$sam_rej -v cnv_sam=$sam_cnv -v unc_sam=$sam_unc \
+awk -f $PTS -v rej_sam=$sam_rej -v cnv_sam=$sam_cnv -v unc_sam=$sam_unc -v cnv_bed=$cnv_bed.tmp \
     -v to_wig=$ow -v tc_wig=$cw -v mut_tab=$mutf -v rt_hist=$rt -v gt_hist=$gt -v cl_stats=$cl;
 
+sort -k1,1 -k2,2n $cnv_bed.tmp > $cnv_bed
+rm $cnv_bed.tmp 
 samtools view -t $CL -h $sam_rej -b | samtools sort | samtools view -h | grep -v "^$" | samtools view -b > $bam_rej
 samtools view -t $CL -h $sam_unc -b | samtools sort | samtools view -h | grep -v "^$" | samtools view -b > $bam_unc
 samtools view -t $CL -h $sam_cnv -b | samtools sort | samtools view -h | grep -v "^$" | samtools view -b > $bam_cnv
@@ -123,8 +126,13 @@ if [ $annots != "0" ]; then
   echo "  count reads in annotation windows -> $acnt"
   stts_files["annot_cnt"]=$acnt;
   echo "annot	rej	unc	cnv" > $acnt
-  bedtools multicov -bams $bam_rej $bam_unc $bam_cnv -bed $annots -S |\
-  awk 'BEGIN {OFS="\t"} {if ($6+$7+$8>0) print NR,$6,$7,$8;}' >> $acnt
+  bedtools multicov -bams $bam_rej $bam_unc $bam_cnv -bed $annots -s |\
+  awk 'BEGIN {OFS="\t"} {if ($7+$8+$9>0) print NR,$7,$8,$9;}' >> $acnt
+
+  ascnt="STATS/"$s".annot.stat.cnt";
+  stts_files["annot_stats"]=$ascnt;
+  echo "  count read statistics in annotation windows -> $ascnt"
+  bedtools intersect -a $annots -b $cnv_bed -s -wa -wb -sorted | awk '{print $4,$10}' | sort | uniq -c > $ascnt
 fi
 
 echo "  generating BIGWIGs (coverage/T tracks)..."

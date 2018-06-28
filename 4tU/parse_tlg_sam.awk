@@ -33,6 +33,7 @@
 #     rej_sam - a SAM file for rejected reads
 #     cnv_sam - a SAM file for converted reads
 #     unc_sam - a SAM file for unconverted reads
+#     cnv_bed - BED file with unrejected read statistics: chr start end #T:#C 0 strand
 #
 #   WIG files (all collected only from non-rejected reads):
 #     to_wig  - file name (excluding suffix) in which #(observed Ts) per base in the genome
@@ -68,8 +69,10 @@ BEGIN {
   if (rej_sam=="") {rej_sam = "/dev/null";}
   if (cnv_sam=="") {cnv_sam = "/dev/null";}
   if (unc_sam=="") {unc_sam = "/dev/null";}
+  if (cnv_bed=="") {cnv_bed = "/dev/null";}
 
   # collect reference genome to memory, future improvement: since input is sorted, can read genomic segments as required
+  # future improvement: reverse complement segments once and read directly instead of per read
   while(( getline line < genome_tab) > 0 ) {
     split(line,hs,"\t");
     genome[hs[1]] = hs[2];
@@ -128,6 +131,13 @@ BEGIN {
       }
     }
     mutmat[is_rev"\t"ref"\t"read[i]]++;
+  }
+  #print read to bed file
+  if ( is_rev ) {
+    print rchr"\t"rpos-N"\t"rpos"\t"r_obsT":"r_cnvT"\t"$5"\t-" > cnv_bed;
+  }
+  else {
+    print rchr"\t"rpos"\t"rpos+N"\t"r_obsT":"r_cnvT"\t"$5"\t+" > cnv_bed;
   }
 
   rhist[r_obsT"\t"r_cnvT]++;

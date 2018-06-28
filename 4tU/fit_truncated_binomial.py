@@ -23,7 +23,12 @@ def fit_truncated_binomial(input, ts=np.arange(5), poiss_noise=0.01, N=100):
 
 
 def parse_args():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser('Fit a t-truncated binomial distribution to data in a sparse 2D read conversion '
+                                'histogram. Assuming that every t in a read has an equal chance of conversion, the '
+                                'number of converted ts per read is distributed binomial(#T,p) where #T is the number '
+                                'of ts in the read, and p is the conversion probability. Fitting a truncated '
+                                'distribution means that any read with less than t number of conversions is ignored, '
+                                'which is a good way to ignore conversion noise in reads')
     p.add_argument('input', type=str,
                    help='path to a sparse 2D histogram counting file with one header line and 3 tab delimited values:'
                         '1) #observed Ts 2) #converted Ts 3) #reads')

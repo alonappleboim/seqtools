@@ -209,26 +209,35 @@ def merge_dup_stats(files):
 
 
 def merge_annotation_counts(files, annot_file):
+    #files is a tuple: (cnt-file list, read-stats file list)
     lg = {}
     try:
         # parse tts file for legend
         afile = open(annot_file)
         hdr = afile.readline().strip().split(' ')
         lg['W'] = np.array([float(hdr[1]), float(hdr[2])])
-        lg['acc'] = np.asarray([line.strip().split('\t')[3] for line in afile], dtype='object')
-        N = len(lg['acc'])
+        lg['annot'] = np.asarray([line.strip().split('\t')[3] for line in afile], dtype='object')
+        amap = {a: i for i, a in enumerate(lg['annot'])}
+        N = len(lg['annot'])
 
-        # and iterate over all count files to merge them
-        d = np.zeros((N, len(files), 3))
-        for fi, f in enumerate(files):
-            fd = np.loadtxt(f, dtype=int, skiprows=1)
+        # iterate over all count files to merge them
+        d = np.zeros((N, len(files[0]), 3))
+        s = []
+        for fi, (acnt, astt) in enumerate(zip(*files)):
+            fd = np.loadtxt(acnt, dtype=int, skiprows=1)
             for ti in range(3):
                 d[fd[:,0]-1, fi, ti] = fd[:,ti+1]
-        lg['data_types'] = np.asarray(open(f).readline().strip().split('\t')[1:], dtype='object')
+            with open(astt) as S:
+                for line in S:
+                    vals = line.strip().split(' ')
+                    ti, ci = vals[2].split(':')
+                    s.append((fi, amap[vals[1]], ti, ci, vals[0]))
+        lg['data_types'] = np.asarray(open(acnt).readline().strip().split('\t')[1:], dtype='object')
+
     except IOError as e:
         sys.stderr.write(str(e) + '\n')
         d = np.zeros((0, 0))
-    return {'l':lg, 'd':d}
+    return {'l':lg, 'd':d, 's':np.asarray(s, dtype=int)}
 
 
 def merge_mut_stats(files):
@@ -331,7 +340,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--stats_dir', '-sd', type=str, help='path to statistics directory', default='STATS')
     p.add_argument('--output', '-o', type=str, default=None, help='output file name, default is stdout')
-    p.add_argument('--annot_file', '-af', type=str, default='STATS/tts_w.bed',
+    p.add_argument('--annot_file', '-af', type=str, default='STATS/tts_window.bed',
                    help='the bed file used to count reads into annotations.')
     p.add_argument('--outname', '-on', type=str, default='tU', help='output struct name, default is tU')
     p.add_argument('--var_regexp', '-ve', type=str, default=None,
@@ -372,6 +381,7 @@ if __name__ == '__main__':
     fmap = file_map(file_list)
     stats = collect_stats(fmap, var_lists, vars)
     fit = fit_params(fmap['tbino_fit'], stats)
-    acnt = {} if 'annot_cnt' not in fmap else merge_annotation_counts(fmap['annot_cnt'], args.annot_file)
-    sio.savemat(args.output, {args.outname: dict(fit=fit, stats=stats, acnt=acnt)})
+    acnt = {} if 'annot_cnt' not in fmap else merge_annotation_counts((fmap['annot_cnt'],fmap['annot_stats']), args.annot_file)
+    sio.savemat(args.output, {args.outname: dict(fit=fit, stats=stats, acnt=acnt)},
+                do_compression=True)
 
